@@ -1,4 +1,4 @@
-# TP-Desarrollo-de-Software
+# TP-Desarrollo-de-Software (App de Gestión de Pedidos)
 
 MODELO DE DOMINIO
 
