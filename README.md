@@ -1,4 +1,5 @@
 # TP-Desarrollo-de-Software
+<img width="918" height="821" alt="Copia de TP Desarrollo software drawio" src="https://github.com/user-attachments/assets/51685177-d624-42cf-9ee9-cd51c3b2a115" />
 
 Requisitos funcionales
 
