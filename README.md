@@ -11,7 +11,8 @@ Requisitos funcionales
 CRUDs Simples (Independientes)
 
   .CRUD de Usuarios (User): Gestión de perfiles, registro y edición de datos básicos (nombre, email, dirección). Esencial para la autenticación y los niveles de acceso (Admin/Cliente)
-  .CRUD de Categorías (Category): Creación, edición y baja de categorías (ej: "Electrónica", "Hogar")
+  
+.CRUD de Categorías (Category): Creación, edición y baja de categorías (ej: "Electrónica", "Hogar")
 
 CRUDs Dependientes (Relacionados)
 
