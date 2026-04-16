@@ -29,31 +29,26 @@ Requisitos funcionales
 
 CRUDs Dependientes (Relacionados)
 
-    .CRUD de Productos (Product): Depende de Categoría. No puede existir un producto sin una categoría asignada
-
-    .CRUD de Pedidos (Order): Depende de Usuario. Registra  la compra (fecha, estado, total) vinculada a un cliente específico
-
-    .CRUD de Reseñas/Comentarios (Review): Depende de Producto y Usuario. Permite a los usuarios calificar productos
-
+      .CRUD de Productos (Product): Depende de Categoría. No puede existir un producto sin una categoría asignada
+      .CRUD Descuento: Depende de la categoria
 Casos de Uso / Epics (Valor de Negocio)
 
-    .Epic 1: (Checkout)
+      .Epic 1: (Checkout)
       Valor: Transforma el interés del usuario en una venta real.
       Lógica: El usuario selecciona productos, el sistema valida que haya stock disponible, calcula el total (sumando precios de cada Producto) y crea un Order con sus respectivos OrderItems.
     Input: Carrito de compras y datos del Usuario.
 
-    .Epic 2: Gestión de Inventario Automatizada
-      Valor: Evita vender productos que no están físicamente disponibles.
-      Lógica: Al confirmarse un Pedido (Epic 1), el sistema debe disparar un proceso que reste automáticamente la cantidad comprada del stock en la entidad Producto. Si el stock llega a cero, el producto debe marcarse como agotado
+      .Epic 2: Pedidos (Order)
+      Valor: Permite al usuario gestionar y hacer seguimiento de sus compras realizadas.
+      Lógica: Una vez creado el pedido, el sistema almacena la información del Order junto con sus OrderItems. El usuario puede consultar el estado del pedido (pendiente,           pagado, enviado, entregado) y ver el detalle de los productos comprados, cantidades y precios. Además, el sistema actualiza el stock de los productos luego de       confirmarse la compra.
 
-
-    .Epic 3: Panel de Control de Ventas (Admin)
-      Valor: Permite al negocio gestionar la logística.
-      Lógica: El Administrador accede a un listado filtrado de todos los Orders realizados. Puede cambiar el estado del pedido (ej: de "Pendiente" a "Enviado" o "Cancelado").
-    Nivel de acceso: Requiere validación de rol de Administrador.
-
-    .Epic 4: Sistema de Fidelización 
-      Valor: Mejora la experiencia del usuario y fomenta la recompra.
+      .Epic 3: Reseñas/Comentarios (Review) 
+      Valor: Genera confianza en los productos y ayuda a otros usuarios en la toma de decisiones.
+      Lógica: Los usuarios que hayan comprado un producto pueden dejar una reseña con una calificación (por ejemplo, de 1 a 5 estrellas) y un comentario. El sistema asocia            la reseña al producto y al usuario, y calcula un promedio de calificaciones para mostrar en la tienda. También se pueden listar todas las reseñas de un producto.
+      
+    
+      .Epic 4: Sistema de Fidelización (Recomendacion)
+       Valor: Mejora la experiencia del usuario y fomenta la recompra.
       Lógica: Un listado de "Mis Compras" donde el usuario no solo vea el detalle, sino que el     sistema le sugiera productos basados en las Categorías que más ha comprado anteriormente.
     
 
