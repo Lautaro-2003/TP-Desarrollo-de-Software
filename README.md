@@ -7,6 +7,8 @@ INTEGRANTES
       Mauricio Ramírez Llopart-52092
       Santino Zanin-52717
 
+REPOSITORIO: https://github.com/Lautaro-2003/TP-Desarrollo-de-Software
+
 DESCRIPCIÓN:El proyecto consiste en el desarrollo de una aplicación de software orientada a la gestión de pedidos, permitiendo administrar usuarios, productos, categorías, compras y reseñas dentro de un sistema
 La aplicación está pensada para simular el funcionamiento de una tienda online, donde los usuarios pueden navegar productos, comprarlos y dejar opiniones, mientras que los administradores pueden gestionar el negocio.
 
