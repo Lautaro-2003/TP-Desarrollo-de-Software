@@ -1,18 +1,24 @@
 {
-  "name": "tp-desarrollo",
+  "name": "mi-proyecto",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
- "scripts": {
-  "build": "tsc -p ./tsconfig.json",
-  "start:dev": "tsc-watch --noClear -p ./tsconfig.json --onSuccess \"node ./dist/index.js\""
-},
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsc -p ./tsconfig.json",
+    "start:dev": "tsc-watch --noClear -p ./tsconfig.json --onSuccess \"node ./dist/app.js\""
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "module",
   "devDependencies": {
-    "tsc-watch": "^6.0.4",
-    "typescript": "^5.9.3"
+    "@types/express": "5.0.6",
+    "@types/node": "26.1.0",
+    "tsc-watch": "6.3.1",
+    "typescript": "5.9.3"
+  },
+  "dependencies": {
+    "express": "5.2.1"
   }
 }
