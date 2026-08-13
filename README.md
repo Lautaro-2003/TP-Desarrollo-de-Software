@@ -47,11 +47,5 @@ Casos de Uso / Epics (Valor de Negocio)
       .Epic 3: Reseñas/Comentarios (Review) 
       Valor: Genera confianza en los productos y ayuda a otros usuarios en la toma de decisiones.
       Lógica: Los usuarios que hayan comprado un producto pueden dejar una reseña con una calificación (por ejemplo, de 1 a 5 estrellas) y un comentario. El sistema asocia la reseña al producto y al usuario, y calcula un promedio de calificaciones para mostrar en la tienda. También se pueden listar todas las reseñas de un producto.
-    
-      .Epic 4: Sistema de Fidelización (Recomendacion)
-       Valor: Mejora la experiencia del usuario y fomenta la recompra.
-      Lógica: Un listado de "Mis Compras" donde el usuario no solo vea el detalle, sino que el sistema le sugiera productos basados en las Categorías que más ha comprado anteriormente.
-    
-
 
 
