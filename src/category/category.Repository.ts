@@ -1,44 +1,32 @@
-import { Repository } from "../shared/repository.js";
+import { Repository } from '../shared/repository.js'
 import { Category } from './category.entity.js'
+import { db } from '../shared/db/conn.js'
+import { ObjectId } from 'mongodb'
 
-
-const categories = [
-  new Category(
-    'Placas de Video',
-    'Tarjetas gráficas para gaming, diseño y renderizado',
-    'b13c92cd-4870-5332-cfc2-e8b4bfc8e4ef'
-  ),
-]
+const categories = db.collection<Category>('categories')
 
 export class CategoryRepository implements Repository<Category> {
-  public findAll(): Category[] | undefined {
-    return categories
+  public async findAll(): Promise<Category[] | undefined> {
+    return await categories.find().toArray()
   }
 
-  public findOne(item: { id: string }): Category | undefined {
-    return categories.find((category) => category.id === item.id)
+  public async findOne(item: { id: string }): Promise<Category | undefined> {
+    const _id = new ObjectId(item.id)
+    return (await categories.findOne({ _id })) || undefined
   }
 
-  public add(item: Category): Category | undefined {
-    categories.push(item)
+  public async add(item: Category): Promise<Category | undefined> {
+    item._id = (await categories.insertOne(item)).insertedId
     return item
   }
 
-  public update(item: Category): Category | undefined {
-    const categoryIdx = categories.findIndex((category) => category.id === item.id)
-    if (categoryIdx !== -1) {
-      categories[categoryIdx] = { ...categories[categoryIdx], ...item }
-    }
-    return categories[categoryIdx]
+  public async update(id: string, item: Category): Promise<Category | undefined> {
+    const _id = new ObjectId(id)
+    return (await categories.findOneAndUpdate({ _id }, { $set: item }, { returnDocument: 'after' })) || undefined
   }
 
-  public delete(item: { id: string }): Category | undefined {
-    const categoryIdx = categories.findIndex((category) => category.id === item.id)
-
-    if (categoryIdx !== -1) {
-      const deletedCategory = categories[categoryIdx]
-      categories.splice(categoryIdx, 1)
-      return deletedCategory
-    }
+  public async delete(item: { id: string }): Promise<Category | undefined> {
+    const _id = new ObjectId(item.id)
+    return (await categories.findOneAndDelete({ _id })) || undefined
   }
 }

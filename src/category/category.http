@@ -3,7 +3,8 @@ GET http://localhost:3000/api/categories
 
 
 ### obtener una categoría
-GET http://localhost:3000/api/categories/b13c92cd-4870-5332-cfc2-localhost:3000/api/categories/b13c92cd-4870-5332-cfc2-e8b4bfc8e4ef
+GET http://localhost:3000/api/categories/6ac975485aa5b3309c197912
+
 
 ### crear una nueva categoría
 POST http://localhost:3000/api/categories
@@ -14,8 +15,9 @@ Content-Type: application/json
   "description": "Tarjetas gráficas para gaming, diseño y renderizado"
 }
 
+
 ### modificar una categoría (PUT - Recurso completo e idempotente)
-PUT http://localhost:3000/api/categories/b13c92cd-4870-5332-cfc2-e8b4bfc8e4ef
+PUT http://localhost:3000/api/categories/6ac975485aa5b3309c197912
 Content-Type: application/json
 
 {
@@ -23,13 +25,15 @@ Content-Type: application/json
   "description": "Tarjetas gráficas de alta gama para gaming y edición de video"
 }
 
+
 ### modificar una categoría (PATCH - Recurso parcial)
-PATCH http://localhost:3000/api/categories/b13c92cd-4870-5332-cfc2-e8b4bfc8e4ef
+PATCH http://localhost:3000/api/categories/6ac975485aa5b3309c197912
 Content-Type: application/json
 
 {
   "description": "Tarjetas gráficas actualizadas con nuevos modelos 2026"
 }
 
+
 ### borrar una categoría
-DELETE http://localhost:3000/api/categories/b13c92cd-4870-5332-cfc2-e8b4bfc8e4ef
+DELETE http://localhost:3000/api/categories/6ac975485aa5b3309c197912
