@@ -1,0 +1,31 @@
+### crear (el precio lo pone el servidor)
+POST http://localhost:3000/api/order-items
+Content-Type: application/json
+
+{
+  "orderId": "674a1b2c3d4e5f6789012346",
+  "productId": "674a1b2c3d4e5f6789012349",
+  "quantity": 2,
+  "unitPrice": 1,
+  "subtotal": 1
+}
+
+### cantidad inválida
+POST http://localhost:3000/api/order-items
+Content-Type: application/json
+
+{
+  "orderId": "674a1b2c3d4e5f6789012346",
+  "productId": "674a1b2c3d4e5f6789012349",
+  "quantity": 0
+}
+
+### pedido inexistente
+POST http://localhost:3000/api/order-items
+Content-Type: application/json
+
+{
+  "orderId": "674a1b2c3d4e5f6789012348",
+  "productId": "674a1b2c3d4e5f6789012349",
+  "quantity": 1
+}
