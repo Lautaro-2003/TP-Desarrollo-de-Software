@@ -13,6 +13,7 @@ Thumbs.db
 
 # ignore built ts files
 dist/**/*
+*.tsbuildinfo
 
 # vscode
 .vscode/*
@@ -27,3 +28,17 @@ dist/**/*
 
 ## built vscode extensions
 *.vsix
+
+# Agent skills and skill-generated artifacts (local only; never commit)
+.agents/
+.claude/
+.cursor/skills/
+skills-lock.json
+AGENTS.md
+CLAUDE.md
+PRODUCT.md
+DESIGN.md
+CONTEXT.md
+CONTEXT-MAP.md
+docs/adr/
+.scratch/
