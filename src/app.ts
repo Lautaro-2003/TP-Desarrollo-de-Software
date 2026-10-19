@@ -1,11 +1,13 @@
 import express from 'express'
 import { categoryRouter } from './category/category.routes.js'
+import { productRouter } from './product/product.routes.js'
 
 const app = express()
 app.use(express.json())
 
 
 app.use('/api/categories', categoryRouter)
+app.use('/api/products', productRouter)
 
 
 app.use((_, res) => {

@@ -1,0 +1,50 @@
+### listar todos
+GET http://localhost:3000/api/products
+
+### listar por categoría (Placas de Video)
+GET http://localhost:3000/api/products?categoryId=674a1b2c3d4e5f6789012345
+
+### categoryId inválido
+GET http://localhost:3000/api/products?categoryId=no-es-un-id
+
+### categoryId bien formado sin productos
+GET http://localhost:3000/api/products?categoryId=674a1b2c3d4e5f6789012348
+
+### crear
+POST http://localhost:3000/api/products
+Content-Type: application/json
+
+{
+  "name": "RTX 4070",
+  "description": "Placa de video para gaming",
+  "price": 800,
+  "stock": 5,
+  "status": "disponible",
+  "categoryId": "674a1b2c3d4e5f6789012345"
+}
+
+### crear sin categoría existente
+POST http://localhost:3000/api/products
+Content-Type: application/json
+
+{
+  "name": "RTX 4070",
+  "description": "Placa de video para gaming",
+  "price": 800,
+  "stock": 5,
+  "status": "disponible",
+  "categoryId": "674a1b2c3d4e5f6789012348"
+}
+
+### crear con precio inválido
+POST http://localhost:3000/api/products
+Content-Type: application/json
+
+{
+  "name": "RTX 4070",
+  "description": "Placa de video para gaming",
+  "price": 0,
+  "stock": 5,
+  "status": "disponible",
+  "categoryId": "674a1b2c3d4e5f6789012345"
+}
