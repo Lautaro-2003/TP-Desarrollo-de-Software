@@ -13,14 +13,14 @@ app.use('/api/order-items', orderItemRouter)
 
 
 app.use((_, res) => {
-   return res.status(404).send({ message: "Resource not found" })
+   return res.status(404).send({ message: "Recurso no encontrado" })
 }) // manda un mensaje cuando la url no existe
 
 app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error(err)
-  res.status(500).send({ message: "Internal server error" })
+  res.status(500).send({ message: "Error interno del servidor" })
 })
 
 app.listen(3000, () => {
-  console.log("Server running on http://localhost:3000/")
+  console.log("Servidor escuchando en http://localhost:3000/")
 })

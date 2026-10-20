@@ -24,27 +24,27 @@ function sanitizeOrderItemInput(req: Request, res: Response, next: NextFunction)
 
 function validateForCreate(input: Record<string, unknown>): string | null {
   if (!("orderId" in input) || parseObjectId(input.orderId) === null) {
-    return "Invalid order id"
+    return "Id de pedido inválido"
   }
   if (!("productId" in input) || parseObjectId(input.productId) === null) {
-    return "Invalid product id"
+    return "Id de producto inválido"
   }
   if (!("quantity" in input) || typeof input.quantity !== "number" || !Number.isInteger(input.quantity) || input.quantity < 1) {
-    return "Quantity must be an integer greater than or equal to 1"
+    return "La cantidad debe ser un entero mayor o igual a 1"
   }
   return null
 }
 
 function validateForUpdate(input: Record<string, unknown>): string | null {
   if ("orderId" in input && parseObjectId(input.orderId) === null) {
-    return "Invalid order id"
+    return "Id de pedido inválido"
   }
   if ("productId" in input && parseObjectId(input.productId) === null) {
-    return "Invalid product id"
+    return "Id de producto inválido"
   }
   if ("quantity" in input) {
     if (typeof input.quantity !== "number" || !Number.isInteger(input.quantity) || input.quantity < 1) {
-      return "Quantity must be an integer greater than or equal to 1"
+      return "La cantidad debe ser un entero mayor o igual a 1"
     }
   }
   return null
@@ -57,11 +57,11 @@ async function findAll(req: Request, res: Response) {
 async function findOne(req: Request, res: Response) {
   const id = req.params.id as string
   if (!parseObjectId(id)) {
-    return res.status(400).send({ message: "Invalid order item id" })
+    return res.status(400).send({ message: "Id de ítem de pedido inválido" })
   }
   const orderItem = await repository.findOne({ id })
   if (!orderItem) {
-    return res.status(404).send({ message: "Order item not found" })
+    return res.status(404).send({ message: "Ítem de pedido no encontrado" })
   }
   res.json({ data: orderItem })
 }
@@ -79,12 +79,12 @@ async function add(req: Request, res: Response) {
 
   const order = await db.collection("orders").findOne({ _id: orderId })
   if (!order) {
-    return res.status(404).send({ message: "Order not found" })
+    return res.status(404).send({ message: "Pedido no encontrado" })
   }
 
   const product = await db.collection<Product>("products").findOne({ _id: productId })
   if (!product) {
-    return res.status(404).send({ message: "Product not found" })
+    return res.status(404).send({ message: "Producto no encontrado" })
   }
 
   const unitPrice = product.price
@@ -92,18 +92,18 @@ async function add(req: Request, res: Response) {
 
   const orderItemInput = new OrderItem(orderId, productId, quantity, unitPrice, subtotal)
   const orderItem = await repository.add(orderItemInput)
-  return res.status(201).send({ message: "Order item created", data: orderItem })
+  return res.status(201).send({ message: "Ítem de pedido creado", data: orderItem })
 }
 
 async function update(req: Request, res: Response) {
   const id = req.params.id as string
   if (!parseObjectId(id)) {
-    return res.status(400).send({ message: "Invalid order item id" })
+    return res.status(400).send({ message: "Id de ítem de pedido inválido" })
   }
 
   const input = req.body.sanitizedInput as Record<string, unknown>
   if (Object.keys(input).length === 0) {
-    return res.status(400).send({ message: "No fields to update" })
+    return res.status(400).send({ message: "No hay campos para actualizar" })
   }
 
   const validationError = validateForUpdate(input)
@@ -113,7 +113,7 @@ async function update(req: Request, res: Response) {
 
   const existing = await repository.findOne({ id })
   if (!existing) {
-    return res.status(404).send({ message: "Order item not found" })
+    return res.status(404).send({ message: "Ítem de pedido no encontrado" })
   }
 
   const orderId = "orderId" in input ? parseObjectId(input.orderId)! : existing.orderId
@@ -123,7 +123,7 @@ async function update(req: Request, res: Response) {
   if ("orderId" in input) {
     const order = await db.collection("orders").findOne({ _id: orderId })
     if (!order) {
-      return res.status(404).send({ message: "Order not found" })
+      return res.status(404).send({ message: "Pedido no encontrado" })
     }
   }
 
@@ -131,7 +131,7 @@ async function update(req: Request, res: Response) {
   if ("productId" in input) {
     const product = await db.collection<Product>("products").findOne({ _id: productId })
     if (!product) {
-      return res.status(404).send({ message: "Product not found" })
+      return res.status(404).send({ message: "Producto no encontrado" })
     }
     unitPrice = product.price
   }
@@ -147,20 +147,20 @@ async function update(req: Request, res: Response) {
   }
 
   const orderItem = await repository.update(id, merged as OrderItem)
-  return res.status(200).send({ message: "Order item updated successfully", data: orderItem })
+  return res.status(200).send({ message: "Ítem de pedido actualizado", data: orderItem })
 }
 
 async function remove(req: Request, res: Response) {
   const id = req.params.id as string
   if (!parseObjectId(id)) {
-    return res.status(400).send({ message: "Invalid order item id" })
+    return res.status(400).send({ message: "Id de ítem de pedido inválido" })
   }
 
   const orderItem = await repository.delete({ id })
   if (!orderItem) {
-    return res.status(404).send({ message: "Order item not found" })
+    return res.status(404).send({ message: "Ítem de pedido no encontrado" })
   }
-  res.status(200).send({ message: "Order item deleted successfully" })
+  res.status(200).send({ message: "Ítem de pedido eliminado" })
 }
 
 export { sanitizeOrderItemInput, findAll, findOne, add, update, remove }

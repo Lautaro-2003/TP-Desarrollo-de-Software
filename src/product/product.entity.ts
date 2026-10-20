@@ -1,6 +1,6 @@
 import { ObjectId } from "mongodb"
 
-// shortcut: price and subtotal are JS numbers, switch to integer cents if a payment provider is added
+// atajo: el precio y el subtotal son números de JS; pasar a centavos enteros si se agrega un medio de pago
 export class Product {
   constructor(
     public name: string,

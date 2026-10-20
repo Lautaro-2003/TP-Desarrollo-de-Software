@@ -2,7 +2,7 @@ import { Db, MongoClient, ServerApiVersion } from "mongodb"
 
 const uri = process.env.MONGODB_URI
 if (!uri) {
-  throw new Error("MONGODB_URI is required")
+  throw new Error("MONGODB_URI es obligatorio")
 }
 
 const dbName = process.env.MONGODB_DB || "tienda"

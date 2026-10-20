@@ -27,22 +27,22 @@ function sanitizeProductInput(req: Request, res: Response, next: NextFunction) {
 
 function validateForCreate(input: Record<string, unknown>): string | null {
   if (!("name" in input) || typeof input.name !== "string" || input.name.trim().length < 1 || input.name.trim().length > 120) {
-    return "Name is required"
+    return "El nombre es obligatorio"
   }
   if (!("description" in input) || typeof input.description !== "string" || input.description.trim().length < 1 || input.description.trim().length > 500) {
-    return "Description is required"
+    return "La descripción es obligatoria"
   }
   if (!("price" in input) || typeof input.price !== "number" || !Number.isFinite(input.price) || input.price <= 0) {
-    return "Price must be a number greater than 0"
+    return "El precio debe ser un número mayor a 0"
   }
   if (!("stock" in input) || typeof input.stock !== "number" || !Number.isInteger(input.stock) || input.stock < 0) {
-    return "Stock must be an integer greater than or equal to 0"
+    return "El stock debe ser un entero mayor o igual a 0"
   }
   if (!("status" in input) || typeof input.status !== "string" || input.status.trim().length < 1 || input.status.trim().length > 40) {
-    return "Status is required"
+    return "El estado es obligatorio"
   }
   if (!("categoryId" in input) || parseObjectId(input.categoryId) === null) {
-    return "Invalid categoryId"
+    return "categoryId inválido"
   }
   return null
 }
@@ -50,31 +50,31 @@ function validateForCreate(input: Record<string, unknown>): string | null {
 function validateForUpdate(input: Record<string, unknown>): string | null {
   if ("name" in input) {
     if (typeof input.name !== "string" || input.name.trim().length < 1 || input.name.trim().length > 120) {
-      return "Name is required"
+      return "El nombre es obligatorio"
     }
   }
   if ("description" in input) {
     if (typeof input.description !== "string" || input.description.trim().length < 1 || input.description.trim().length > 500) {
-      return "Description is required"
+      return "La descripción es obligatoria"
     }
   }
   if ("price" in input) {
     if (typeof input.price !== "number" || !Number.isFinite(input.price) || input.price <= 0) {
-      return "Price must be a number greater than 0"
+      return "El precio debe ser un número mayor a 0"
     }
   }
   if ("stock" in input) {
     if (typeof input.stock !== "number" || !Number.isInteger(input.stock) || input.stock < 0) {
-      return "Stock must be an integer greater than or equal to 0"
+      return "El stock debe ser un entero mayor o igual a 0"
     }
   }
   if ("status" in input) {
     if (typeof input.status !== "string" || input.status.trim().length < 1 || input.status.trim().length > 40) {
-      return "Status is required"
+      return "El estado es obligatorio"
     }
   }
   if ("categoryId" in input && parseObjectId(input.categoryId) === null) {
-    return "Invalid categoryId"
+    return "categoryId inválido"
   }
   return null
 }
@@ -109,7 +109,7 @@ async function findAll(req: Request, res: Response) {
   }
   const parsed = parseObjectId(categoryIdParam)
   if (!parsed) {
-    return res.status(400).send({ message: "Invalid categoryId" })
+    return res.status(400).send({ message: "categoryId inválido" })
   }
   return res.json({ data: await repository.findAll({ categoryId: parsed }) })
 }
@@ -117,11 +117,11 @@ async function findAll(req: Request, res: Response) {
 async function findOne(req: Request, res: Response) {
   const id = req.params.id as string
   if (!parseObjectId(id)) {
-    return res.status(400).send({ message: "Invalid product id" })
+    return res.status(400).send({ message: "Id de producto inválido" })
   }
   const product = await repository.findOne({ id })
   if (!product) {
-    return res.status(404).send({ message: "Product not found" })
+    return res.status(404).send({ message: "Producto no encontrado" })
   }
   res.json({ data: product })
 }
@@ -136,7 +136,7 @@ async function add(req: Request, res: Response) {
   const categoryId = parseObjectId(input.categoryId)!
   const category = await db.collection("categories").findOne({ _id: categoryId })
   if (!category) {
-    return res.status(404).send({ message: "Category not found" })
+    return res.status(404).send({ message: "Categoría no encontrada" })
   }
 
   const productInput = new Product(
@@ -149,18 +149,18 @@ async function add(req: Request, res: Response) {
   )
 
   const product = await repository.add(productInput)
-  return res.status(201).send({ message: "Product created", data: product })
+  return res.status(201).send({ message: "Producto creado", data: product })
 }
 
 async function update(req: Request, res: Response) {
   const id = req.params.id as string
   if (!parseObjectId(id)) {
-    return res.status(400).send({ message: "Invalid product id" })
+    return res.status(400).send({ message: "Id de producto inválido" })
   }
 
   const input = req.body.sanitizedInput as Record<string, unknown>
   if (Object.keys(input).length === 0) {
-    return res.status(400).send({ message: "No fields to update" })
+    return res.status(400).send({ message: "No hay campos para actualizar" })
   }
 
   const validationError = validateForUpdate(input)
@@ -170,7 +170,7 @@ async function update(req: Request, res: Response) {
 
   const existing = await repository.findOne({ id })
   if (!existing) {
-    return res.status(404).send({ message: "Product not found" })
+    return res.status(404).send({ message: "Producto no encontrado" })
   }
 
   const fields = buildUpdateFields(input)
@@ -178,33 +178,33 @@ async function update(req: Request, res: Response) {
   if ("categoryId" in fields) {
     const category = await db.collection("categories").findOne({ _id: fields.categoryId })
     if (!category) {
-      return res.status(404).send({ message: "Category not found" })
+      return res.status(404).send({ message: "Categoría no encontrada" })
     }
   }
 
   const product = await repository.update(id, fields as Product)
-  return res.status(200).send({ message: "Product updated successfully", data: product })
+  return res.status(200).send({ message: "Producto actualizado", data: product })
 }
 
 async function remove(req: Request, res: Response) {
   const id = req.params.id as string
   if (!parseObjectId(id)) {
-    return res.status(400).send({ message: "Invalid product id" })
+    return res.status(400).send({ message: "Id de producto inválido" })
   }
 
   const productId = new ObjectId(id)
   const existing = await repository.findOne({ id })
   if (!existing) {
-    return res.status(404).send({ message: "Product not found" })
+    return res.status(404).send({ message: "Producto no encontrado" })
   }
 
   const count = await db.collection("orderItems").countDocuments({ productId })
   if (count > 0) {
-    return res.status(409).send({ message: "Product is referenced by an order item" })
+    return res.status(409).send({ message: "El producto está referenciado por un ítem de pedido" })
   }
 
   await repository.delete({ id })
-  res.status(200).send({ message: "Product deleted successfully" })
+  res.status(200).send({ message: "Producto eliminado" })
 }
 
 export { sanitizeProductInput, findAll, findOne, add, update, remove }
