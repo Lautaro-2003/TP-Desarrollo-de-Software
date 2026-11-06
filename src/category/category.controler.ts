@@ -116,6 +116,11 @@ async function remove(req: Request, res: Response) {
   if (products > 0) {
     return res.status(409).send({ message: "La categoría tiene productos asociados" })
   }
+  // los descuentos también dependen de la categoría
+  const discounts = await db.collection("discounts").countDocuments({ categoryId: new ObjectId(id) })
+  if (discounts > 0) {
+    return res.status(409).send({ message: "La categoría tiene descuentos asociados" })
+  }
 
   await repository.delete({ id })
   res.status(200).send({ message: "Categoría eliminada" })
