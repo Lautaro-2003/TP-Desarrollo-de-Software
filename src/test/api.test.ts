@@ -178,20 +178,23 @@ describe("pedidos e ítems", () => {
   })
 
   test("un pedido no pendiente no se puede tocar", async () => {
+    // usa el teclado para no consumir stock de la RTX que verifican otras pruebas
     const id = (await api("POST", "/orders", { userId: JUAN })).body.data._id
-    const item = (await api("POST", "/order-items", { orderId: id, productId: RTX, quantity: 1 })).body.data
-    assert.equal((await api("PATCH", `/orders/${id}`, { status: "cancelado" })).status, 400)
-    assert.equal((await api("PATCH", `/orders/${id}`, { status: "pagado" })).status, 200)
+    const item = (await api("POST", "/order-items", { orderId: id, productId: TECLADO, quantity: 1 })).body.data
+    assert.equal((await api("PATCH", `/orders/${id}/status`, { status: "pagado" })).status, 200)
 
-    assert.equal((await api("POST", "/order-items", { orderId: id, productId: RTX, quantity: 1 })).status, 409)
+    assert.equal((await api("POST", "/order-items", { orderId: id, productId: TECLADO, quantity: 1 })).status, 409)
     assert.equal((await api("PATCH", `/order-items/${item._id}`, { quantity: 2 })).status, 409)
     assert.equal((await api("DELETE", `/order-items/${item._id}`)).status, 409)
     assert.equal((await api("PATCH", `/orders/${id}`, { userId: JUAN })).status, 409)
     assert.equal((await api("DELETE", `/orders/${id}`)).status, 409)
     // un producto con ítems de pedido no se puede borrar
-    assert.equal((await api("DELETE", `/products/${RTX}`)).status, 409)
+    assert.equal((await api("DELETE", `/products/${TECLADO}`)).status, 409)
+  })
 
-    await api("PATCH", `/orders/${id}`, { status: "pendiente" })
+  test("el estado no se cambia por el PATCH genérico", async () => {
+    const id = (await api("POST", "/orders", { userId: JUAN })).body.data._id
+    assert.equal((await api("PATCH", `/orders/${id}`, { status: "pagado" })).status, 400)
     await api("DELETE", `/orders/${id}`)
   })
 
@@ -252,5 +255,75 @@ describe("checkout (Epic 1)", () => {
     for (const [body, status] of casos) {
       assert.equal((await api("POST", "/orders/checkout", body)).status, status, JSON.stringify(body))
     }
+  })
+})
+
+// va al final: consume stock de la RTX
+describe("estados del pedido (Epic 2)", () => {
+  const stock = async (id: string) => (await api("GET", `/products/${id}`)).body.data.stock
+  const status = (id: string, s: unknown) => api("PATCH", `/orders/${id}/status`, { status: s })
+
+  test("ciclo completo pendiente → pagado → enviado → entregado, descontando stock al pagar", async () => {
+    const [rtx, teclado] = [await stock(RTX), await stock(TECLADO)]
+    const checkout = await api("POST", "/orders/checkout", {
+      userId: JUAN,
+      items: [{ productId: RTX, quantity: 2 }, { productId: TECLADO, quantity: 1 }],
+    })
+    const id = checkout.body.data.order._id
+
+    // detalle del pedido con sus ítems
+    const detail = (await api("GET", `/orders/${id}`)).body.data
+    assert.equal(detail.items.length, 2)
+    assert.equal(detail.total, 1720)
+
+    assert.equal((await status(id, "enviado")).status, 409) // no se saltean estados
+    assert.equal((await status(id, "cancelado")).status, 400)
+    assert.equal((await status(id, "pagado")).status, 200)
+    assert.equal(await stock(RTX), rtx - 2)
+    assert.equal(await stock(TECLADO), teclado - 1)
+
+    assert.equal((await status(id, "pagado")).status, 409) // no se paga dos veces
+    assert.equal((await status(id, "pendiente")).status, 409) // no se vuelve atrás
+    assert.equal((await status(id, "enviado")).status, 200)
+    assert.equal((await status(id, "entregado")).status, 200)
+    assert.equal((await status(id, "entregado")).status, 409) // estado final
+    assert.equal(await stock(RTX), rtx - 2) // enviar y entregar no tocan el stock
+  })
+
+  test("ids inválidos, pedido inexistente y pedido sin ítems", async () => {
+    assert.equal((await status("xx", "pagado")).status, 400)
+    assert.equal((await status(NO_EXISTE, "pagado")).status, 404)
+    const empty = (await api("POST", "/orders", { userId: JUAN })).body.data._id
+    assert.equal((await status(empty, "pagado")).status, 409)
+    await api("DELETE", `/orders/${empty}`)
+  })
+
+  test("si falta stock al pagar se revierte todo el pago", async () => {
+    // los ítems sueltos no validan stock: dos pedidos piden toda la RTX disponible
+    const disponible = await stock(RTX)
+    const teclado = await stock(TECLADO)
+    const a = (await api("POST", "/orders", { userId: JUAN })).body.data._id
+    const b = (await api("POST", "/orders", { userId: JUAN })).body.data._id
+    await api("POST", "/order-items", { orderId: a, productId: RTX, quantity: disponible })
+    await api("POST", "/order-items", { orderId: b, productId: TECLADO, quantity: 1 })
+    await api("POST", "/order-items", { orderId: b, productId: RTX, quantity: 1 })
+
+    assert.equal((await status(a, "pagado")).status, 200)
+    const res = await status(b, "pagado")
+    assert.equal(res.status, 409)
+    assert.equal(res.body.data.productId, RTX)
+    // el teclado de b no se descontó y b sigue pendiente
+    assert.equal(await stock(TECLADO), teclado)
+    assert.equal((await api("GET", `/orders/${b}`)).body.data.status, "pendiente")
+    assert.equal(await stock(RTX), 0)
+    await api("DELETE", `/orders/${b}`)
+  })
+
+  test("dos pagos simultáneos del mismo pedido descuentan el stock una sola vez", async () => {
+    const teclado = await stock(TECLADO)
+    const id = (await api("POST", "/orders/checkout", { userId: JUAN, items: [{ productId: TECLADO, quantity: 2 }] })).body.data.order._id
+    const results = await Promise.all([status(id, "pagado"), status(id, "pagado")])
+    assert.deepEqual(results.map((r) => r.status).sort(), [200, 409])
+    assert.equal(await stock(TECLADO), teclado - 2)
   })
 })
