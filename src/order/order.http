@@ -1,0 +1,166 @@
+### iniciar sesión como admin (ejecutar primero)
+# @name loginAdmin
+POST http://localhost:3000/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@tienda.com",
+  "password": "admin1234"
+}
+
+### iniciar sesión como cliente (Juan Pérez)
+# @name loginCliente
+POST http://localhost:3000/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "juan.perez@mail.com",
+  "password": "cliente1234"
+}
+
+### listar todos
+GET http://localhost:3000/api/orders
+Authorization: Bearer {{loginAdmin.response.body.data.token}}
+
+### pedidos de un usuario (Juan Pérez)
+GET http://localhost:3000/api/orders?userId=674a1b2c3d4e5f678901234b
+Authorization: Bearer {{loginCliente.response.body.data.token}}
+
+### obtener uno con el detalle de sus ítems (pedido del seed)
+GET http://localhost:3000/api/orders/674a1b2c3d4e5f6789012346
+Authorization: Bearer {{loginCliente.response.body.data.token}}
+
+### id inválido
+GET http://localhost:3000/api/orders/no-es-un-id
+Authorization: Bearer {{loginAdmin.response.body.data.token}}
+
+### crear (nace pendiente, con fecha actual y total 0; se ignoran status, date y total)
+POST http://localhost:3000/api/orders
+Authorization: Bearer {{loginAdmin.response.body.data.token}}
+Content-Type: application/json
+
+{
+  "userId": "674a1b2c3d4e5f678901234b",
+  "status": "entregado",
+  "total": 1
+}
+
+### crear con usuario inexistente
+POST http://localhost:3000/api/orders
+Authorization: Bearer {{loginAdmin.response.body.data.token}}
+Content-Type: application/json
+
+{
+  "userId": "674a1b2c3d4e5f6789012399"
+}
+
+### checkout: 2 RTX 4070 + 1 teclado (el teclado repetido se suma) → total 800*2 + 120*3 = 1960
+# el pedido queda a nombre de quien inició sesión
+POST http://localhost:3000/api/orders/checkout
+Authorization: Bearer {{loginCliente.response.body.data.token}}
+Content-Type: application/json
+
+{
+  "items": [
+    { "productId": "674a1b2c3d4e5f6789012349", "quantity": 2 },
+    { "productId": "674a1b2c3d4e5f678901234c", "quantity": 1 },
+    { "productId": "674a1b2c3d4e5f678901234c", "quantity": 2 }
+  ]
+}
+
+### checkout con stock insuficiente (hay 5 RTX 4070)
+# el pedido queda a nombre de quien inició sesión
+POST http://localhost:3000/api/orders/checkout
+Authorization: Bearer {{loginCliente.response.body.data.token}}
+Content-Type: application/json
+
+{
+  "items": [{ "productId": "674a1b2c3d4e5f6789012349", "quantity": 6 }]
+}
+
+### checkout con carrito vacío
+# el pedido queda a nombre de quien inició sesión
+POST http://localhost:3000/api/orders/checkout
+Authorization: Bearer {{loginCliente.response.body.data.token}}
+Content-Type: application/json
+
+{
+  "items": []
+}
+
+### checkout con producto inexistente
+# el pedido queda a nombre de quien inició sesión
+POST http://localhost:3000/api/orders/checkout
+Authorization: Bearer {{loginCliente.response.body.data.token}}
+Content-Type: application/json
+
+{
+  "items": [{ "productId": "674a1b2c3d4e5f6789012399", "quantity": 1 }]
+}
+
+### pagar (reemplazar el id por el de un pedido con ítems; descuenta el stock)
+PATCH http://localhost:3000/api/orders/REEMPLAZAR_ID/status
+Authorization: Bearer {{loginCliente.response.body.data.token}}
+Content-Type: application/json
+
+{
+  "status": "pagado"
+}
+
+### enviar
+PATCH http://localhost:3000/api/orders/REEMPLAZAR_ID/status
+Authorization: Bearer {{loginAdmin.response.body.data.token}}
+Content-Type: application/json
+
+{
+  "status": "enviado"
+}
+
+### entregar
+PATCH http://localhost:3000/api/orders/REEMPLAZAR_ID/status
+Authorization: Bearer {{loginAdmin.response.body.data.token}}
+Content-Type: application/json
+
+{
+  "status": "entregado"
+}
+
+### saltear un estado (409: un pedido pendiente solo puede pasar a pagado)
+PATCH http://localhost:3000/api/orders/674a1b2c3d4e5f6789012346/status
+Authorization: Bearer {{loginAdmin.response.body.data.token}}
+Content-Type: application/json
+
+{
+  "status": "entregado"
+}
+
+### pagar un pedido sin ítems (409)
+PATCH http://localhost:3000/api/orders/674a1b2c3d4e5f6789012346/status
+Authorization: Bearer {{loginCliente.response.body.data.token}}
+Content-Type: application/json
+
+{
+  "status": "pagado"
+}
+
+### estado inválido (400)
+PATCH http://localhost:3000/api/orders/674a1b2c3d4e5f6789012346/status
+Authorization: Bearer {{loginAdmin.response.body.data.token}}
+Content-Type: application/json
+
+{
+  "status": "cancelado"
+}
+
+### el PATCH genérico no cambia el estado (400)
+PATCH http://localhost:3000/api/orders/674a1b2c3d4e5f6789012346
+Authorization: Bearer {{loginAdmin.response.body.data.token}}
+Content-Type: application/json
+
+{
+  "status": "pagado"
+}
+
+### eliminar (solo si está pendiente; borra también sus ítems)
+DELETE http://localhost:3000/api/orders/674a1b2c3d4e5f6789012346
+Authorization: Bearer {{loginAdmin.response.body.data.token}}

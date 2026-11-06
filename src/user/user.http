@@ -1,0 +1,101 @@
+### iniciar sesión como admin (ejecutar primero)
+# @name loginAdmin
+POST http://localhost:3000/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@tienda.com",
+  "password": "admin1234"
+}
+
+### iniciar sesión como cliente (Juan Pérez)
+# @name loginCliente
+POST http://localhost:3000/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "juan.perez@mail.com",
+  "password": "cliente1234"
+}
+
+### listar todos
+GET http://localhost:3000/api/users
+Authorization: Bearer {{loginAdmin.response.body.data.token}}
+
+### obtener uno (cliente del seed)
+GET http://localhost:3000/api/users/674a1b2c3d4e5f678901234b
+Authorization: Bearer {{loginAdmin.response.body.data.token}}
+
+### id inválido
+GET http://localhost:3000/api/users/no-es-un-id
+Authorization: Bearer {{loginAdmin.response.body.data.token}}
+
+### id bien formado que no existe
+GET http://localhost:3000/api/users/674a1b2c3d4e5f6789012399
+Authorization: Bearer {{loginAdmin.response.body.data.token}}
+
+### crear (sin rol: queda como cliente)
+POST http://localhost:3000/api/users
+Authorization: Bearer {{loginAdmin.response.body.data.token}}
+Content-Type: application/json
+
+{
+  "name": "María Gómez",
+  "email": "Maria.Gomez@mail.com",
+  "address": "Córdoba 1500, Rosario",
+  "password": "secreta123"
+}
+
+### crear con email repetido
+POST http://localhost:3000/api/users
+Authorization: Bearer {{loginAdmin.response.body.data.token}}
+Content-Type: application/json
+
+{
+  "name": "Otro Juan",
+  "email": "juan.perez@mail.com",
+  "address": "San Martín 100, Rosario",
+  "password": "secreta123"
+}
+
+### crear con email inválido
+POST http://localhost:3000/api/users
+Authorization: Bearer {{loginAdmin.response.body.data.token}}
+Content-Type: application/json
+
+{
+  "name": "Sin Email",
+  "email": "no-es-un-email",
+  "address": "San Martín 100, Rosario",
+  "password": "secreta123"
+}
+
+### crear con rol inválido
+POST http://localhost:3000/api/users
+Authorization: Bearer {{loginAdmin.response.body.data.token}}
+Content-Type: application/json
+
+{
+  "name": "Rol Raro",
+  "email": "rol@mail.com",
+  "address": "San Martín 100, Rosario",
+  "password": "secreta123",
+  "role": "superusuario"
+}
+
+### modificar dirección
+PATCH http://localhost:3000/api/users/674a1b2c3d4e5f678901234b
+Authorization: Bearer {{loginAdmin.response.body.data.token}}
+Content-Type: application/json
+
+{
+  "address": "Oroño 900, Rosario"
+}
+
+### eliminar
+DELETE http://localhost:3000/api/users/674a1b2c3d4e5f678901234b
+Authorization: Bearer {{loginAdmin.response.body.data.token}}
+
+### un cliente no puede ver la lista de usuarios (403)
+GET http://localhost:3000/api/users
+Authorization: Bearer {{loginCliente.response.body.data.token}}

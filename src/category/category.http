@@ -1,35 +1,60 @@
-### obtener todas las categorías
+### iniciar sesión como admin (ejecutar primero)
+# @name loginAdmin
+POST http://localhost:3000/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@tienda.com",
+  "password": "admin1234"
+}
+
+### listar todas
 GET http://localhost:3000/api/categories
 
+### obtener una (Placas de Video, del seed)
+GET http://localhost:3000/api/categories/674a1b2c3d4e5f6789012345
 
-### obtener una categoría
-GET http://localhost:3000/api/categories/b13c92cd-4870-5332-cfc2-localhost:3000/api/categories/b13c92cd-4870-5332-cfc2-e8b4bfc8e4ef
+### id inválido
+GET http://localhost:3000/api/categories/no-es-un-id
 
-### crear una nueva categoría
+### crear
 POST http://localhost:3000/api/categories
+Authorization: Bearer {{loginAdmin.response.body.data.token}}
 Content-Type: application/json
 
 {
-  "name": "Placas de Video",
-  "description": "Tarjetas gráficas para gaming, diseño y renderizado"
+  "name": "Almacenamiento",
+  "description": "Discos SSD, HDD y pendrives"
 }
 
-### modificar una categoría (PUT - Recurso completo e idempotente)
-PUT http://localhost:3000/api/categories/b13c92cd-4870-5332-cfc2-e8b4bfc8e4ef
+### crear sin nombre
+POST http://localhost:3000/api/categories
+Authorization: Bearer {{loginAdmin.response.body.data.token}}
 Content-Type: application/json
 
 {
-  "name": "Placas de Video",
-  "description": "Tarjetas gráficas de alta gama para gaming y edición de video"
+  "description": "Sin nombre"
 }
 
-### modificar una categoría (PATCH - Recurso parcial)
-PATCH http://localhost:3000/api/categories/b13c92cd-4870-5332-cfc2-e8b4bfc8e4ef
+### modificar (PUT)
+PUT http://localhost:3000/api/categories/674a1b2c3d4e5f6789012347
+Authorization: Bearer {{loginAdmin.response.body.data.token}}
 Content-Type: application/json
 
 {
-  "description": "Tarjetas gráficas actualizadas con nuevos modelos 2026"
+  "name": "Periféricos",
+  "description": "Teclados, mouses, auriculares y webcams"
 }
 
-### borrar una categoría
-DELETE http://localhost:3000/api/categories/b13c92cd-4870-5332-cfc2-e8b4bfc8e4ef
+### modificar parcial (PATCH)
+PATCH http://localhost:3000/api/categories/674a1b2c3d4e5f6789012347
+Authorization: Bearer {{loginAdmin.response.body.data.token}}
+Content-Type: application/json
+
+{
+  "description": "Teclados, mouses y auriculares"
+}
+
+### eliminar con productos asociados (409)
+DELETE http://localhost:3000/api/categories/674a1b2c3d4e5f6789012345
+Authorization: Bearer {{loginAdmin.response.body.data.token}}

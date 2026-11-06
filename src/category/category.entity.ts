@@ -1,9 +1,9 @@
-import crypto from "node:crypto"
+import { ObjectId } from "mongodb"
 
 export class Category {
   constructor(
     public name: string,
     public description: string,
-    public id = crypto.randomUUID()
+    public _id?: ObjectId
   ) {}
 }

@@ -4,9 +4,10 @@
   "description": "",
   "main": "app.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "tsc -p ./tsconfig.json && node --env-file=.env --test dist/test/*.test.js",
     "build": "tsc -p ./tsconfig.json",
-    "start:dev": "tsc-watch --noClear -p ./tsconfig.json --onSuccess \"node ./dist/app.js\""
+    "start:dev": "tsc-watch --noClear -p ./tsconfig.json --onSuccess \"node --env-file=.env ./dist/app.js\"",
+    "seed": "tsc -p ./tsconfig.json && node --env-file=.env ./dist/shared/db/seed.js"
   },
   "keywords": [],
   "author": "",
@@ -14,11 +15,13 @@
   "type": "module",
   "devDependencies": {
     "@types/express": "5.0.6",
-    "@types/node": "26.1.0",
-    "tsc-watch": "6.3.1",
-    "typescript": "5.9.3"
+    "@types/node": "26.6.6",
+    "tsc-watch": "7.2.1",
+    "typescript": "7.0.2"
   },
   "dependencies": {
-    "express": "5.2.1"
+    "express": "5.3.0",
+    "jose": "6.2.13",
+    "mongodb": "7.8.0"
   }
 }
