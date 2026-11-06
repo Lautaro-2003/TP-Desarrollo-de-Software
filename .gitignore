@@ -45,3 +45,6 @@ CONTEXT.md
 CONTEXT-MAP.md
 docs/adr/
 .scratch/
+
+# build del frontend
+frontend/dist/
