@@ -44,4 +44,30 @@ await db.collection("products").updateOne(
   { upsert: true }
 )
 
+await db.collection("users").updateOne(
+  { _id: new ObjectId("674a1b2c3d4e5f678901234a") },
+  {
+    $setOnInsert: {
+      name: "Admin Tienda",
+      email: "admin@tienda.com",
+      address: "Zeballos 1341, Rosario",
+      role: "admin",
+    },
+  },
+  { upsert: true }
+)
+
+await db.collection("users").updateOne(
+  { _id: new ObjectId("674a1b2c3d4e5f678901234b") },
+  {
+    $setOnInsert: {
+      name: "Juan Pérez",
+      email: "juan.perez@mail.com",
+      address: "Av. Pellegrini 250, Rosario",
+      role: "cliente",
+    },
+  },
+  { upsert: true }
+)
+
 process.exit(0)
