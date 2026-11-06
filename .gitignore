@@ -45,6 +45,3 @@ CONTEXT.md
 CONTEXT-MAP.md
 docs/adr/
 .scratch/
-
-# graphify knowledge graph (generated)
-graphify-out/

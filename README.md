@@ -51,4 +51,4 @@ Casos de Uso / Epics (Valor de Negocio)
 
 
 
-ESTADO Y PENDIENTES: ver [ROADMAP.md](ROADMAP.md). El desarrollo se hace en la rama `Desarrollo`; `main` recibe un único merge al terminar el proyecto.
+RAMAS: el desarrollo se hace en la rama `Desarrollo`; `main` recibe un único merge al terminar el proyecto.
