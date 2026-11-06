@@ -7,7 +7,11 @@ import { orderRouter } from './order/order.routes.js'
 
 const app = express()
 app.use(express.json())
-
+// en Express 5 req.body queda undefined si el pedido no trae JSON; los controladores esperan un objeto
+app.use((req, _res, next) => {
+  req.body ??= {}
+  next()
+})
 
 app.use('/api/categories', categoryRouter)
 app.use('/api/products', productRouter)
@@ -21,6 +25,10 @@ app.use((_, res) => {
 }) // manda un mensaje cuando la url no existe
 
 app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  // express.json marca el JSON mal formado con type "entity.parse.failed": es un error del cliente
+  if ((err as { type?: string } | null)?.type === "entity.parse.failed") {
+    return res.status(400).send({ message: "El cuerpo del pedido no es un JSON válido" })
+  }
   console.error(err)
   res.status(500).send({ message: "Error interno del servidor" })
 })
