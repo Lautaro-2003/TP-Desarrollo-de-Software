@@ -7,7 +7,7 @@
     "test": "tsc -p ./tsconfig.json && node --env-file=.env --test dist/test/*.test.js",
     "build": "tsc -p ./tsconfig.json",
     "start:dev": "tsc-watch --noClear -p ./tsconfig.json --onSuccess \"node --env-file=.env ./dist/app.js\"",
-    "seed": "tsc -p ./tsconfig.json && node --env-file=.env ./dist/shared/db/seed.js"
+    "seed": "tsc -p ./tsconfig.json && node --env-file=.env ./dist/shared/db/seed.js && node --env-file=.env ./dist/shared/db/seed-demo.js"
   },
   "keywords": [],
   "author": "",
