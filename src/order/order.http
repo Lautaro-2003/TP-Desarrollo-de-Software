@@ -1,0 +1,48 @@
+### listar todos
+GET http://localhost:3000/api/orders
+
+### pedidos de un usuario (Juan Pérez)
+GET http://localhost:3000/api/orders?userId=674a1b2c3d4e5f678901234b
+
+### obtener uno (pedido del seed)
+GET http://localhost:3000/api/orders/674a1b2c3d4e5f6789012346
+
+### id inválido
+GET http://localhost:3000/api/orders/no-es-un-id
+
+### crear (nace pendiente, con fecha actual y total 0; se ignoran status, date y total)
+POST http://localhost:3000/api/orders
+Content-Type: application/json
+
+{
+  "userId": "674a1b2c3d4e5f678901234b",
+  "status": "entregado",
+  "total": 1
+}
+
+### crear con usuario inexistente
+POST http://localhost:3000/api/orders
+Content-Type: application/json
+
+{
+  "userId": "674a1b2c3d4e5f6789012399"
+}
+
+### cambiar estado
+PATCH http://localhost:3000/api/orders/674a1b2c3d4e5f6789012346
+Content-Type: application/json
+
+{
+  "status": "pagado"
+}
+
+### estado inválido
+PATCH http://localhost:3000/api/orders/674a1b2c3d4e5f6789012346
+Content-Type: application/json
+
+{
+  "status": "cancelado"
+}
+
+### eliminar (solo si está pendiente; borra también sus ítems)
+DELETE http://localhost:3000/api/orders/674a1b2c3d4e5f6789012346

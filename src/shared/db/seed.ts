@@ -23,9 +23,17 @@ await db.collection("categories").updateOne(
   { upsert: true }
 )
 
+// pedido pendiente de Juan Pérez (sin ítems todavía); $set completa el documento vacío de versiones anteriores del seed
 await db.collection("orders").updateOne(
   { _id: new ObjectId("674a1b2c3d4e5f6789012346") },
-  { $setOnInsert: {} },
+  {
+    $set: {
+      userId: new ObjectId("674a1b2c3d4e5f678901234b"),
+      date: new Date("2026-11-01T12:00:00Z"),
+      status: "pendiente",
+      total: 0,
+    },
+  },
   { upsert: true }
 )
 

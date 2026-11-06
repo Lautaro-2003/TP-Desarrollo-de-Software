@@ -1,4 +1,4 @@
-### crear (el precio lo pone el servidor)
+### crear (el precio lo pone el servidor y se recalcula el total del pedido)
 POST http://localhost:3000/api/order-items
 Content-Type: application/json
 
@@ -29,3 +29,9 @@ Content-Type: application/json
   "productId": "674a1b2c3d4e5f6789012349",
   "quantity": 1
 }
+
+### listar todos
+GET http://localhost:3000/api/order-items
+
+### quitar un ítem (reemplazar el id; el pedido tiene que estar pendiente)
+DELETE http://localhost:3000/api/order-items/REEMPLAZAR_ID
