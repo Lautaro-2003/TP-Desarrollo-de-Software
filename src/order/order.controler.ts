@@ -3,6 +3,7 @@ import { OrderRepository } from "./order.Repository.js"
 import { Order, ORDER_STATUSES, OrderStatus } from "./order.entity.js"
 import { db } from "../shared/db/conn.js"
 import { parseObjectId } from "../shared/objectId.js"
+import { Product } from "../product/product.entity.js"
 
 const repository = new OrderRepository()
 
@@ -134,4 +135,59 @@ async function remove(req: Request, res: Response) {
   res.status(200).send({ message: "Pedido eliminado" })
 }
 
-export { sanitizeOrderInput, findAll, findOne, add, update, remove }
+// Epic 1: convierte el carrito en un pedido pendiente con sus ítems
+async function checkout(req: Request, res: Response) {
+  const { userId, items } = req.body ?? {}
+
+  if (parseObjectId(userId) === null) {
+    return res.status(400).send({ message: "userId inválido" })
+  }
+  if (!Array.isArray(items) || items.length === 0) {
+    return res.status(400).send({ message: "El carrito no puede estar vacío" })
+  }
+
+  // valida cada renglón y junta las cantidades si un producto aparece más de una vez
+  const quantities = new Map<string, number>()
+  for (const item of items) {
+    const productId = parseObjectId(item?.productId)
+    if (!productId) {
+      return res.status(400).send({ message: "productId inválido en el carrito" })
+    }
+    if (typeof item.quantity !== "number" || !Number.isInteger(item.quantity) || item.quantity < 1) {
+      return res.status(400).send({ message: "La cantidad debe ser un entero mayor o igual a 1" })
+    }
+    const key = productId.toString()
+    quantities.set(key, (quantities.get(key) ?? 0) + item.quantity)
+  }
+
+  if (!(await userExists(userId))) {
+    return res.status(404).send({ message: "Usuario no encontrado" })
+  }
+
+  const productIds = [...quantities.keys()].map((id) => parseObjectId(id)!)
+  const products = await db.collection<Product>("products").find({ _id: { $in: productIds } }).toArray()
+  if (products.length !== productIds.length) {
+    return res.status(404).send({ message: "Algún producto del carrito no existe" })
+  }
+
+  const withoutStock = products.filter((p) => p.stock < quantities.get(p._id!.toString())!)
+  if (withoutStock.length > 0) {
+    return res.status(409).send({
+      message: "Stock insuficiente",
+      data: withoutStock.map((p) => ({ productId: p._id, name: p.name, stock: p.stock, requested: quantities.get(p._id!.toString()) })),
+    })
+  }
+
+  // el precio unitario se congela con el precio actual del producto
+  const orderItems = products.map((p) => {
+    const quantity = quantities.get(p._id!.toString())!
+    return { productId: p._id!, quantity, unitPrice: p.price, subtotal: quantity * p.price }
+  })
+  const total = orderItems.reduce((sum, item) => sum + item.subtotal, 0)
+
+  // shortcut: el stock se valida acá pero se descuenta al pagar (Fase 4), que lo vuelve a validar
+  const result = await repository.addWithItems(new Order(parseObjectId(userId)!, new Date(), "pendiente", total), orderItems)
+  return res.status(201).send({ message: "Pedido creado", data: result })
+}
+
+export { sanitizeOrderInput, findAll, findOne, add, update, remove, checkout }

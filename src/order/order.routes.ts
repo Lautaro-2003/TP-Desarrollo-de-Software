@@ -1,8 +1,9 @@
 import { Router } from "express";
-import { sanitizeOrderInput, findAll, findOne, add, update, remove } from "./order.controler.js";
+import { sanitizeOrderInput, findAll, findOne, add, update, remove, checkout } from "./order.controler.js";
 
 export const orderRouter = Router()
 
+orderRouter.post("/checkout", checkout)
 orderRouter.get("/", findAll)
 orderRouter.get("/:id", findOne)
 orderRouter.post("/", sanitizeOrderInput, add)
