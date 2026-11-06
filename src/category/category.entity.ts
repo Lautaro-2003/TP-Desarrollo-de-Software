@@ -1,10 +1,9 @@
-import { ObjectId } from "mongodb";
-import crypto from "node:crypto"
+import { ObjectId } from "mongodb"
 
 export class Category {
   constructor(
     public name: string,
     public description: string,
-    public _id?:ObjectId
+    public _id?: ObjectId
   ) {}
 }
