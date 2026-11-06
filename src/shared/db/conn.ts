@@ -1,4 +1,12 @@
 import { Db, MongoClient, ServerApiVersion } from "mongodb"
+import dns from "node:dns"
+
+// opcional: servidores DNS a usar (ej. "8.8.8.8,1.1.1.1"). Sirve cuando el DNS
+// de la red no resuelve los registros SRV que necesita una URI mongodb+srv://
+const dnsServers = process.env.DNS_SERVERS
+if (dnsServers) {
+  dns.setServers(dnsServers.split(",").map((s) => s.trim()))
+}
 
 const uri = process.env.MONGODB_URI
 if (!uri) {
