@@ -3,6 +3,7 @@ import { Order, OrderStatus } from './order.entity.js'
 import { OrderItem } from '../orderItem/orderItem.entity.js'
 import { Product } from '../product/product.entity.js'
 import { cli, db } from '../shared/db/conn.js'
+import { roundCents } from '../shared/money.js'
 import { ObjectId } from 'mongodb'
 
 const orders = db.collection<Order>('orders')
@@ -96,6 +97,6 @@ export class OrderRepository implements Repository<Order> {
         { $group: { _id: null, total: { $sum: '$subtotal' } } },
       ])
       .toArray()
-    await orders.updateOne({ _id: orderId }, { $set: { total: result?.total ?? 0 } })
+    await orders.updateOne({ _id: orderId }, { $set: { total: roundCents(result?.total ?? 0) } })
   }
 }
