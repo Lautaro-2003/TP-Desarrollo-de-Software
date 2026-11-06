@@ -402,3 +402,90 @@ describe("reseñas (Epic 3)", () => {
     assert.equal((await api("DELETE", "/reviews/xx")).status, 400)
   })
 })
+
+describe("descuentos (CRUD dependiente de categoría)", () => {
+  const DAY = 24 * 60 * 60 * 1000
+  const iso = (days: number) => new Date(Date.now() + days * DAY).toISOString()
+  const discount = (body: Record<string, unknown>) => api("POST", "/discounts", body)
+  const vigente = { categoryId: PERIFERICOS, percentage: 10, startDate: iso(-1), endDate: iso(1) }
+
+  test("validaciones del alta y la modificación", async () => {
+    for (const percentage of [0, 101, 12.5, "10", null]) {
+      assert.equal((await discount({ ...vigente, percentage })).status, 400, `percentage ${percentage}`)
+    }
+    assert.equal((await discount({ ...vigente, categoryId: "xx" })).status, 400)
+    assert.equal((await discount({ ...vigente, categoryId: NO_EXISTE })).status, 404)
+    assert.equal((await discount({ ...vigente, startDate: "no-es-fecha" })).status, 400)
+    assert.equal((await discount({ ...vigente, endDate: undefined })).status, 400)
+    assert.equal((await discount({ ...vigente, endDate: vigente.startDate })).status, 400)
+    assert.equal((await discount({ ...vigente, endDate: iso(-2) })).status, 400)
+
+    const created = await discount(vigente)
+    assert.equal(created.status, 201)
+    const id = created.body.data._id
+    assert.equal((await api("PATCH", `/discounts/${id}`, {})).status, 400)
+    // la fecha nueva se compara con la que ya estaba guardada
+    assert.equal((await api("PATCH", `/discounts/${id}`, { endDate: iso(-2) })).status, 400)
+    assert.equal((await api("PATCH", `/discounts/${id}`, { categoryId: NO_EXISTE })).status, 404)
+    assert.equal((await api("PATCH", `/discounts/${id}`, { percentage: 20 })).body.data.percentage, 20)
+    assert.equal((await api("PATCH", `/discounts/${NO_EXISTE}`, { percentage: 20 })).status, 404)
+
+    const list = (await api("GET", `/discounts?categoryId=${PERIFERICOS}`)).body.data
+    assert.ok(list.some((d: any) => d._id === id))
+    assert.equal((await api("GET", "/discounts?categoryId=xx")).status, 400)
+    assert.equal((await api("GET", "/discounts/xx")).status, 400)
+    assert.equal((await api("GET", `/discounts/${NO_EXISTE}`)).status, 404)
+    assert.equal((await api("DELETE", `/discounts/${id}`)).status, 200)
+    assert.equal((await api("DELETE", `/discounts/${id}`)).status, 404)
+  })
+
+  test("el checkout aplica el mayor descuento vigente de la categoría", async () => {
+    const ids = [
+      await discount({ ...vigente, percentage: 10 }),
+      await discount({ ...vigente, percentage: 25 }),
+      await discount({ ...vigente, percentage: 50, startDate: iso(-10), endDate: iso(-5) }), // vencido
+      await discount({ ...vigente, percentage: 80, startDate: iso(5), endDate: iso(10) }), // futuro
+    ].map((r) => r.body.data._id)
+
+    const res = await api("POST", "/orders/checkout", { userId: JUAN, items: [{ productId: TECLADO, quantity: 2 }] })
+    assert.equal(res.body.data.items[0].unitPrice, 90) // 120 - 25%
+    assert.equal(res.body.data.items[0].subtotal, 180)
+    assert.equal(res.body.data.order.total, 180)
+    await api("DELETE", `/orders/${res.body.data.order._id}`)
+
+    for (const id of ids) await api("DELETE", `/discounts/${id}`)
+    const sinDescuento = await api("POST", "/orders/checkout", { userId: JUAN, items: [{ productId: TECLADO, quantity: 1 }] })
+    assert.equal(sinDescuento.body.data.items[0].unitPrice, 120)
+    await api("DELETE", `/orders/${sinDescuento.body.data.order._id}`)
+  })
+
+  test("los ítems sueltos congelan el precio con descuento, redondeado al centavo", async () => {
+    const cat = (await api("POST", "/categories", { name: "Cables", description: "Cables y adaptadores" })).body.data._id
+    const prod = (await api("POST", "/products", { name: "Cable HDMI", description: "2 metros", price: 19.99, stock: 5, status: "disponible", categoryId: cat })).body.data._id
+    const d = (await discount({ ...vigente, categoryId: cat, percentage: 10 })).body.data._id
+
+    const order = (await api("POST", "/orders", { userId: JUAN })).body.data._id
+    const item = (await api("POST", "/order-items", { orderId: order, productId: prod, quantity: 3 })).body.data
+    assert.equal(item.unitPrice, 17.99) // 19.99 - 10% = 17.991 → 17.99
+    assert.equal(item.subtotal, 53.97)
+    assert.equal((await api("GET", `/orders/${order}`)).body.data.total, 53.97)
+
+    // el precio quedó congelado: borrar el descuento no cambia el ítem
+    await api("DELETE", `/discounts/${d}`)
+    assert.equal((await api("GET", `/order-items/${item._id}`)).body.data.unitPrice, 17.99)
+
+    await api("DELETE", `/orders/${order}`)
+    await api("DELETE", `/products/${prod}`)
+    assert.equal((await api("DELETE", `/categories/${cat}`)).status, 200)
+  })
+
+  test("no se borra una categoría con descuentos", async () => {
+    const cat = (await api("POST", "/categories", { name: "Monitores", description: "Pantallas" })).body.data._id
+    const d = (await discount({ ...vigente, categoryId: cat })).body.data._id
+    const res = await api("DELETE", `/categories/${cat}`)
+    assert.equal(res.status, 409)
+    assert.equal(res.body.message, "La categoría tiene descuentos asociados")
+    await api("DELETE", `/discounts/${d}`)
+    assert.equal((await api("DELETE", `/categories/${cat}`)).status, 200)
+  })
+})
