@@ -6,6 +6,7 @@ import { userRouter } from './user/user.routes.js'
 import { orderRouter } from './order/order.routes.js'
 import { reviewRouter } from './review/review.routes.js'
 import { discountRouter } from './discount/discount.routes.js'
+import { authRouter } from './auth/auth.routes.js'
 
 const app = express()
 app.use(express.json())
@@ -15,6 +16,7 @@ app.use((req, _res, next) => {
   next()
 })
 
+app.use('/api/auth', authRouter)
 app.use('/api/categories', categoryRouter)
 app.use('/api/products', productRouter)
 app.use('/api/order-items', orderItemRouter)

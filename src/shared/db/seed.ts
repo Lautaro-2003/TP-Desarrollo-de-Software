@@ -1,5 +1,8 @@
 import { ObjectId } from "mongodb"
 import { db } from "./conn.js"
+import { hashPassword } from "../../auth/auth.js"
+
+// credenciales de prueba para la demo: admin@tienda.com / admin1234 y juan.perez@mail.com / cliente1234
 
 await db.collection("categories").updateOne(
   { _id: new ObjectId("674a1b2c3d4e5f6789012345") },
@@ -76,6 +79,7 @@ await db.collection("users").updateOne(
       address: "Zeballos 1341, Rosario",
       role: "admin",
     },
+    $set: { passwordHash: await hashPassword("admin1234") },
   },
   { upsert: true }
 )
@@ -89,6 +93,7 @@ await db.collection("users").updateOne(
       address: "Av. Pellegrini 250, Rosario",
       role: "cliente",
     },
+    $set: { passwordHash: await hashPassword("cliente1234") },
   },
   { upsert: true }
 )
