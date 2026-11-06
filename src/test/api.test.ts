@@ -18,14 +18,26 @@ const JUAN = "674a1b2c3d4e5f678901234b"
 const NO_EXISTE = "674a1b2c3d4e5f6789012399"
 
 let server: ChildProcess
+// sesiones de los usuarios del seed (se cargan en before)
+let adminToken = ""
+let juanToken = ""
 
-async function api(method: string, path: string, body?: unknown, raw?: string) {
+// por defecto llama como admin; token: null llama sin sesión
+async function api(method: string, path: string, body?: unknown, opts: { raw?: string; token?: string | null } = {}) {
+  const token = opts.token === undefined ? adminToken : opts.token
+  const headers: Record<string, string> = {}
+  if (body !== undefined || opts.raw !== undefined) headers["Content-Type"] = "application/json"
+  if (token) headers.Authorization = `Bearer ${token}`
   const res = await fetch(BASE + path, {
     method,
-    headers: body !== undefined || raw !== undefined ? { "Content-Type": "application/json" } : {},
-    body: raw ?? (body !== undefined ? JSON.stringify(body) : undefined),
+    headers,
+    body: opts.raw ?? (body !== undefined ? JSON.stringify(body) : undefined),
   })
   return { status: res.status, body: (await res.json()) as any }
+}
+
+async function login(email: string, password: string) {
+  return (await api("POST", "/auth/login", { email, password }, { token: null })).body.data.token as string
 }
 
 before(async () => {
@@ -39,15 +51,16 @@ before(async () => {
   assert.equal(seed.status, 0, seed.stderr)
 
   server = spawn(process.execPath, ["dist/app.js"], { env, stdio: "inherit" })
-  for (let i = 0; i < 60; i++) {
-    try {
-      await fetch(BASE + "/categories")
-      return
-    } catch {
-      await new Promise((r) => setTimeout(r, 500))
-    }
+  let up = false
+  for (let i = 0; i < 60 && !up; i++) {
+    up = await fetch(BASE + "/categories").then(() => true, () => false)
+    if (!up) await new Promise((r) => setTimeout(r, 500))
   }
-  throw new Error("El servidor de prueba no arrancó")
+  assert.ok(up, "El servidor de prueba no arrancó")
+
+  // credenciales de prueba del seed
+  adminToken = await login("admin@tienda.com", "admin1234")
+  juanToken = await login("juan.perez@mail.com", "cliente1234")
 })
 
 after(async () => {
@@ -66,7 +79,7 @@ describe("generales", () => {
     assert.equal((await api("POST", "/orders/checkout")).status, 400)
   })
   test("JSON mal formado → 400", async () => {
-    const res = await api("POST", "/categories", undefined, "{ nombre: ")
+    const res = await api("POST", "/categories", undefined, { raw: "{ nombre: " })
     assert.equal(res.status, 400)
   })
 })
@@ -119,18 +132,18 @@ describe("productos", () => {
 
 describe("usuarios", () => {
   test("alta con email normalizado y rol cliente por defecto", async () => {
-    const res = await api("POST", "/users", { name: "Ana", email: " Ana@Mail.COM ", address: "Calle 1" })
+    const res = await api("POST", "/users", { name: "Ana", email: " Ana@Mail.COM ", address: "Calle 1", password: "secreta123" })
     assert.equal(res.status, 201)
     assert.equal(res.body.data.email, "ana@mail.com")
     assert.equal(res.body.data.role, "cliente")
     // el mismo email con otras mayúsculas también es repetido
-    assert.equal((await api("POST", "/users", { name: "Ana 2", email: "ANA@mail.com", address: "x" })).status, 409)
+    assert.equal((await api("POST", "/users", { name: "Ana 2", email: "ANA@mail.com", address: "x", password: "secreta123" })).status, 409)
     assert.equal((await api("DELETE", `/users/${res.body.data._id}`)).status, 200)
   })
   test("validaciones", async () => {
-    assert.equal((await api("POST", "/users", { name: "a", email: "no-es-email", address: "x" })).status, 400)
-    assert.equal((await api("POST", "/users", { name: "a", email: "a@b.co", address: "x", role: "root" })).status, 400)
-    assert.equal((await api("POST", "/users", { email: "a@b.co", address: "x" })).status, 400)
+    assert.equal((await api("POST", "/users", { name: "a", email: "no-es-email", address: "x", password: "secreta123" })).status, 400)
+    assert.equal((await api("POST", "/users", { name: "a", email: "a@b.co", address: "x", role: "root", password: "secreta123" })).status, 400)
+    assert.equal((await api("POST", "/users", { email: "a@b.co", address: "x", password: "secreta123" })).status, 400)
     assert.equal((await api("PATCH", `/users/${JUAN}`, { email: "admin@tienda.com" })).status, 409)
   })
   test("no se borra un usuario con pedidos", async () => {
@@ -330,67 +343,75 @@ describe("estados del pedido (Epic 2)", () => {
 
 // va después de "estados del pedido": Juan ya tiene pedidos pagados con la RTX y el teclado
 describe("reseñas (Epic 3)", () => {
-  let luis: string
-  const rating = async (id: string) => (await api("GET", `/products/${id}`)).body.data.rating
-  const review = (body: Record<string, unknown>) => api("POST", "/reviews", body)
+  let luisToken: string
+  const rating = async (id: string) => (await api("GET", `/products/${id}`, undefined, { token: null })).body.data.rating
+  // el autor de la reseña sale del token, no del cuerpo
+  const review = (token: string, body: Record<string, unknown>) => api("POST", "/reviews", body, { token })
 
   before(async () => {
-    luis = (await api("POST", "/users", { name: "Luis", email: "luis@mail.com", address: "Calle 2" })).body.data._id
+    await api("POST", "/auth/register", { name: "Luis", email: "luis@mail.com", address: "Calle 2", password: "luis12345" }, { token: null })
+    luisToken = await login("luis@mail.com", "luis12345")
   })
 
   test("solo puede reseñar quien compró el producto (pedido pagado o posterior)", async () => {
     const base = { productId: TECLADO, rating: 5, comment: "Muy bueno" }
-    assert.equal((await review({ ...base, userId: luis })).status, 403)
+    assert.equal((await review(luisToken, base)).status, 403)
+    // mandar otro userId en el cuerpo no sirve para reseñar en nombre de Juan
+    assert.equal((await review(luisToken, { ...base, userId: JUAN })).status, 403)
 
     // un pedido pendiente todavía no cuenta como compra
-    const pending = (await api("POST", "/orders/checkout", { userId: luis, items: [{ productId: TECLADO, quantity: 1 }] })).body.data.order._id
-    assert.equal((await review({ ...base, userId: luis })).status, 403)
-    await api("DELETE", `/orders/${pending}`)
+    const pending = (await api("POST", "/orders/checkout", { items: [{ productId: TECLADO, quantity: 1 }] }, { token: luisToken })).body.data.order._id
+    assert.equal((await review(luisToken, base)).status, 403)
+    await api("DELETE", `/orders/${pending}`, undefined, { token: luisToken })
 
-    assert.equal((await review({ ...base, userId: NO_EXISTE })).status, 404)
-    assert.equal((await review({ ...base, userId: JUAN, productId: NO_EXISTE })).status, 404)
-    assert.equal((await review({ ...base, userId: "xx" })).status, 400)
-    assert.equal((await review({ ...base, userId: JUAN, productId: "xx" })).status, 400)
+    assert.equal((await review(juanToken, { ...base, productId: NO_EXISTE })).status, 404)
+    assert.equal((await review(juanToken, { ...base, productId: "xx" })).status, 400)
+    assert.equal((await api("POST", "/reviews", base, { token: null })).status, 401)
   })
 
   test("valida calificación y comentario", async () => {
-    const base = { userId: JUAN, productId: TECLADO, rating: 4, comment: "Bien" }
+    const base = { productId: TECLADO, rating: 4, comment: "Bien" }
     for (const value of [0, 6, 3.5, "5", null]) {
-      assert.equal((await review({ ...base, rating: value })).status, 400, `rating ${value}`)
+      assert.equal((await review(juanToken, { ...base, rating: value })).status, 400, `rating ${value}`)
     }
-    assert.equal((await review({ ...base, comment: "   " })).status, 400)
-    assert.equal((await review({ ...base, comment: "a".repeat(1001) })).status, 400)
-    assert.equal((await review({ userId: JUAN, productId: TECLADO, rating: 4 })).status, 400)
+    assert.equal((await review(juanToken, { ...base, comment: "   " })).status, 400)
+    assert.equal((await review(juanToken, { ...base, comment: "a".repeat(1001) })).status, 400)
+    assert.equal((await review(juanToken, { productId: TECLADO, rating: 4 })).status, 400)
   })
 
   test("el promedio del producto se recalcula al crear, modificar y borrar reseñas", async () => {
     assert.equal(await rating(RTX), undefined) // sin reseñas no hay promedio
 
-    const juanReview = await review({ userId: JUAN, productId: TECLADO, rating: 4, comment: "  Buen teclado  " })
+    const juanReview = await review(juanToken, { productId: TECLADO, rating: 4, comment: "  Buen teclado  " })
     assert.equal(juanReview.status, 201)
     assert.equal(juanReview.body.data.comment, "Buen teclado")
+    assert.equal(juanReview.body.data.userId, JUAN)
     assert.deepEqual(await rating(TECLADO), { average: 4, count: 1 })
-    assert.equal((await review({ userId: JUAN, productId: TECLADO, rating: 1, comment: "otra" })).status, 409)
+    assert.equal((await review(juanToken, { productId: TECLADO, rating: 1, comment: "otra" })).status, 409)
 
     // Luis compra y paga el teclado: ahora sí puede reseñarlo
-    const order = (await api("POST", "/orders/checkout", { userId: luis, items: [{ productId: TECLADO, quantity: 1 }] })).body.data.order._id
-    await api("PATCH", `/orders/${order}/status`, { status: "pagado" })
-    const luisReview = (await review({ userId: luis, productId: TECLADO, rating: 1, comment: "Llegó fallado" })).body.data
+    const order = (await api("POST", "/orders/checkout", { items: [{ productId: TECLADO, quantity: 1 }] }, { token: luisToken })).body.data.order._id
+    assert.equal((await api("PATCH", `/orders/${order}/status`, { status: "pagado" }, { token: luisToken })).status, 200)
+    const luisReview = (await review(luisToken, { productId: TECLADO, rating: 1, comment: "Llegó fallado" })).body.data
     assert.deepEqual(await rating(TECLADO), { average: 2.5, count: 2 })
 
-    const list = await api("GET", `/reviews?productId=${TECLADO}`)
+    const list = await api("GET", `/reviews?productId=${TECLADO}`, undefined, { token: null })
     assert.equal(list.body.data.length, 2)
     assert.equal((await api("GET", "/reviews?productId=xx")).status, 400)
 
-    assert.equal((await api("PATCH", `/reviews/${luisReview._id}`, { rating: 2 })).status, 200)
+    const editLuis = (body: unknown, token = luisToken) => api("PATCH", `/reviews/${luisReview._id}`, body, { token })
+    assert.equal((await editLuis({ rating: 2 })).status, 200)
     assert.deepEqual(await rating(TECLADO), { average: 3, count: 2 })
-    assert.equal((await api("PATCH", `/reviews/${luisReview._id}`, { userId: JUAN })).status, 400)
-    assert.equal((await api("PATCH", `/reviews/${luisReview._id}`, {})).status, 400)
-    assert.equal((await api("PATCH", `/reviews/${luisReview._id}`, { rating: 9 })).status, 400)
+    assert.equal((await editLuis({ rating: 5 }, juanToken)).status, 403) // no es su reseña
+    assert.equal((await editLuis({ userId: JUAN })).status, 400)
+    assert.equal((await editLuis({})).status, 400)
+    assert.equal((await editLuis({ rating: 9 })).status, 400)
     assert.equal((await api("PATCH", `/reviews/${NO_EXISTE}`, { rating: 3 })).status, 404)
 
-    assert.equal((await api("DELETE", `/reviews/${juanReview.body.data._id}`)).status, 200)
+    assert.equal((await api("DELETE", `/reviews/${juanReview.body.data._id}`, undefined, { token: luisToken })).status, 403)
+    assert.equal((await api("DELETE", `/reviews/${juanReview.body.data._id}`, undefined, { token: juanToken })).status, 200)
     assert.deepEqual(await rating(TECLADO), { average: 2, count: 1 })
+    // el admin puede borrar cualquier reseña (moderación)
     assert.equal((await api("DELETE", `/reviews/${luisReview._id}`)).status, 200)
     assert.equal(await rating(TECLADO), undefined)
     assert.equal((await api("DELETE", `/reviews/${luisReview._id}`)).status, 404)
@@ -487,5 +508,113 @@ describe("descuentos (CRUD dependiente de categoría)", () => {
     assert.equal(res.body.message, "La categoría tiene descuentos asociados")
     await api("DELETE", `/discounts/${d}`)
     assert.equal((await api("DELETE", `/categories/${cat}`)).status, 200)
+  })
+})
+
+describe("autenticación y permisos", () => {
+  let sofia: string
+  let sofiaToken: string
+  const asSofia = (method: string, path: string, body?: unknown) => api(method, path, body, { token: sofiaToken })
+
+  before(async () => {
+    const res = await api("POST", "/auth/register", { name: "Sofía", email: "sofia@mail.com", address: "Calle 3", password: "sofia12345" }, { token: null })
+    sofia = res.body.data._id
+    sofiaToken = await login("sofia@mail.com", "sofia12345")
+  })
+
+  test("registro: crea clientes, valida la contraseña y nunca devuelve el hash", async () => {
+    const res = await api("POST", "/auth/register", { name: "Pedro", email: "pedro@mail.com", address: "x", password: "pedro12345" }, { token: null })
+    assert.equal(res.status, 201)
+    assert.equal(res.body.data.role, "cliente")
+    assert.equal(res.body.data.passwordHash, undefined)
+    const base = { name: "Otro", email: "otro@mail.com", address: "x" }
+    assert.equal((await api("POST", "/auth/register", { ...base, password: "corta" }, { token: null })).status, 400)
+    assert.equal((await api("POST", "/auth/register", base, { token: null })).status, 400)
+    // nadie se registra como admin por su cuenta
+    assert.equal((await api("POST", "/auth/register", { ...base, password: "otro12345", role: "admin" }, { token: null })).status, 403)
+    assert.equal((await api("POST", "/auth/register", { ...base, email: "pedro@mail.com", password: "otro12345" }, { token: null })).status, 409)
+  })
+
+  test("login y sesión", async () => {
+    const ok = await api("POST", "/auth/login", { email: " SOFIA@mail.com ", password: "sofia12345" }, { token: null })
+    assert.equal(ok.status, 200)
+    assert.ok(ok.body.data.token)
+    assert.equal(ok.body.data.user.passwordHash, undefined)
+
+    // mismo mensaje con email inexistente o contraseña incorrecta
+    const wrong = await api("POST", "/auth/login", { email: "sofia@mail.com", password: "incorrecta" }, { token: null })
+    const unknown = await api("POST", "/auth/login", { email: "nadie@mail.com", password: "sofia12345" }, { token: null })
+    assert.equal(wrong.status, 401)
+    assert.equal(unknown.status, 401)
+    assert.equal(wrong.body.message, unknown.body.message)
+    assert.equal((await api("POST", "/auth/login", { email: "sofia@mail.com" }, { token: null })).status, 400)
+
+    assert.equal((await asSofia("GET", "/auth/me")).body.data.email, "sofia@mail.com")
+    assert.equal((await api("GET", "/auth/me", undefined, { token: null })).status, 401)
+    assert.equal((await api("GET", "/auth/me", undefined, { token: "token.trucho.firmado" })).status, 401)
+    assert.equal((await api("GET", "/auth/me", undefined, { token: sofiaToken.slice(0, -2) + "xx" })).status, 401)
+  })
+
+  test("catálogo: leer es público, escribir es solo para admin", async () => {
+    assert.equal((await api("GET", "/categories", undefined, { token: null })).status, 200)
+    assert.equal((await api("GET", "/products", undefined, { token: null })).status, 200)
+    assert.equal((await api("GET", "/discounts", undefined, { token: null })).status, 200)
+    const cat = { name: "X", description: "Y" }
+    assert.equal((await api("POST", "/categories", cat, { token: null })).status, 401)
+    assert.equal((await asSofia("POST", "/categories", cat)).status, 403)
+    assert.equal((await asSofia("PATCH", `/products/${RTX}`, { price: 1 })).status, 403)
+    assert.equal((await asSofia("DELETE", `/categories/${PLACAS}`)).status, 403)
+    assert.equal((await asSofia("POST", "/discounts", { categoryId: PLACAS, percentage: 90 })).status, 403)
+    // los ítems sueltos son solo para admin: el cliente usa el checkout
+    assert.equal((await asSofia("GET", "/order-items")).status, 403)
+  })
+
+  test("usuarios: el cliente solo ve y modifica su propio usuario y no cambia su rol", async () => {
+    assert.equal((await asSofia("GET", "/users")).status, 403)
+    const all = await api("GET", "/users")
+    assert.equal(all.status, 200)
+    assert.ok(all.body.data.every((u: any) => u.passwordHash === undefined))
+
+    assert.equal((await asSofia("GET", `/users/${sofia}`)).status, 200)
+    assert.equal((await asSofia("GET", `/users/${JUAN}`)).status, 403)
+    assert.equal((await asSofia("PATCH", `/users/${JUAN}`, { address: "hack" })).status, 403)
+    assert.equal((await asSofia("PATCH", `/users/${sofia}`, { role: "admin" })).status, 403)
+    assert.equal((await asSofia("DELETE", `/users/${sofia}`)).status, 403)
+
+    const updated = await asSofia("PATCH", `/users/${sofia}`, { address: "Calle Nueva 10" })
+    assert.equal(updated.body.data.address, "Calle Nueva 10")
+    assert.equal(updated.body.data.passwordHash, undefined)
+
+    // cambiar la contraseña: la vieja deja de funcionar
+    assert.equal((await asSofia("PATCH", `/users/${sofia}`, { password: "nueva12345" })).status, 200)
+    assert.equal((await api("POST", "/auth/login", { email: "sofia@mail.com", password: "sofia12345" }, { token: null })).status, 401)
+    sofiaToken = await login("sofia@mail.com", "nueva12345")
+    assert.ok(sofiaToken)
+  })
+
+  test("pedidos: el cliente compra para sí mismo y solo ve y toca los suyos", async () => {
+    assert.equal((await api("GET", "/orders", undefined, { token: null })).status, 401)
+
+    // aunque mande el userId de Juan, el pedido queda a nombre de Sofía
+    const checkout = await asSofia("POST", "/orders/checkout", { userId: JUAN, items: [{ productId: TECLADO, quantity: 1 }] })
+    assert.equal(checkout.status, 201)
+    const mine = checkout.body.data.order
+    assert.equal(mine.userId, sofia)
+
+    const list = await asSofia("GET", `/orders?userId=${JUAN}`)
+    assert.ok(list.body.data.length > 0)
+    assert.ok(list.body.data.every((o: any) => o.userId === sofia))
+
+    const juanOrder = "674a1b2c3d4e5f6789012346" // pedido pendiente de Juan del seed
+    assert.equal((await asSofia("GET", `/orders/${juanOrder}`)).status, 403)
+    assert.equal((await asSofia("PATCH", `/orders/${juanOrder}/status`, { status: "pagado" })).status, 403)
+    assert.equal((await asSofia("DELETE", `/orders/${juanOrder}`)).status, 403)
+    assert.equal((await asSofia("PATCH", `/orders/${mine._id}`, { userId: sofia })).status, 403)
+
+    assert.equal((await asSofia("GET", `/orders/${mine._id}`)).body.data.items.length, 1)
+    assert.equal((await asSofia("PATCH", `/orders/${mine._id}/status`, { status: "pagado" })).status, 200)
+    // enviar y entregar es tarea del admin
+    assert.equal((await asSofia("PATCH", `/orders/${mine._id}/status`, { status: "enviado" })).status, 403)
+    assert.equal((await api("PATCH", `/orders/${mine._id}/status`, { status: "enviado" })).status, 200)
   })
 })
