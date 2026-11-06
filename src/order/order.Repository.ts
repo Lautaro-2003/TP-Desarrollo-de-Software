@@ -35,17 +35,15 @@ export class OrderRepository implements Repository<Order> {
 
   // crea el pedido y sus ítems en una transacción: se guarda todo o nada
   public async addWithItems(order: Order, items: Omit<OrderItem, 'orderId'>[]): Promise<{ order: Order; items: OrderItem[] }> {
-    const session = cli.startSession()
-    try {
-      return await session.withTransaction(async () => {
+    // withSession cierra la sesión solo; withTransaction reintenta ante errores transitorios
+    return await cli.withSession((session) =>
+      session.withTransaction(async () => {
         order._id = (await orders.insertOne(order, { session })).insertedId
         const savedItems = items.map((item) => ({ ...item, orderId: order._id! }))
         await orderItems.insertMany(savedItems, { session })
         return { order, items: savedItems }
       })
-    } finally {
-      await session.endSession()
-    }
+    )
   }
 
   // borra el pedido junto con sus ítems
