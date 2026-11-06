@@ -1,10 +1,11 @@
 import { Repository } from '../shared/repository.js'
 import { Order } from './order.entity.js'
-import { db } from '../shared/db/conn.js'
+import { OrderItem } from '../orderItem/orderItem.entity.js'
+import { cli, db } from '../shared/db/conn.js'
 import { ObjectId } from 'mongodb'
 
 const orders = db.collection<Order>('orders')
-const orderItems = db.collection('orderItems')
+const orderItems = db.collection<OrderItem>('orderItems')
 
 await orders.createIndex({ userId: 1 })
 await orderItems.createIndex({ orderId: 1 })
@@ -30,6 +31,21 @@ export class OrderRepository implements Repository<Order> {
   public async update(id: string, item: Order): Promise<Order | undefined> {
     const _id = new ObjectId(id)
     return (await orders.findOneAndUpdate({ _id }, { $set: item }, { returnDocument: 'after' })) || undefined
+  }
+
+  // crea el pedido y sus ítems en una transacción: se guarda todo o nada
+  public async addWithItems(order: Order, items: Omit<OrderItem, 'orderId'>[]): Promise<{ order: Order; items: OrderItem[] }> {
+    const session = cli.startSession()
+    try {
+      return await session.withTransaction(async () => {
+        order._id = (await orders.insertOne(order, { session })).insertedId
+        const savedItems = items.map((item) => ({ ...item, orderId: order._id! }))
+        await orderItems.insertMany(savedItems, { session })
+        return { order, items: savedItems }
+      })
+    } finally {
+      await session.endSession()
+    }
   }
 
   // borra el pedido junto con sus ítems

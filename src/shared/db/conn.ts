@@ -15,7 +15,8 @@ if (!uri) {
 
 const dbName = process.env.MONGODB_DB || "tienda"
 
-const cli = new MongoClient(uri, {
+// se exporta el cliente para poder abrir transacciones (ej. checkout)
+export const cli = new MongoClient(uri, {
   serverApi: {
     version: ServerApiVersion.v1,
     strict: true,
