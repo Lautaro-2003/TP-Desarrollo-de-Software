@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express"
-import { OrderRepository } from "./order.Repository.js"
-import { Order, ORDER_STATUSES, OrderStatus } from "./order.entity.js"
+import { OrderRepository, InsufficientStockError } from "./order.Repository.js"
+import { Order, ORDER_STATUSES, OrderStatus, NEXT_STATUS } from "./order.entity.js"
 import { db } from "../shared/db/conn.js"
 import { parseObjectId } from "../shared/objectId.js"
 import { Product } from "../product/product.entity.js"
@@ -8,10 +8,9 @@ import { Product } from "../product/product.entity.js"
 const repository = new OrderRepository()
 
 function sanitizeOrderInput(req: Request, res: Response, next: NextFunction) {
-  // date y total no se aceptan del cliente: los define el sistema
+  // date y total no se aceptan del cliente: los define el sistema; el estado se cambia con PATCH /:id/status
   req.body.sanitizedInput = {
     userId: req.body.userId,
-    status: req.body.status,
   }
 
   Object.keys(req.body.sanitizedInput).forEach((key) => {
@@ -54,7 +53,8 @@ async function findOne(req: Request, res: Response) {
   if (!order) {
     return res.status(404).send({ message: "Pedido no encontrado" })
   }
-  res.json({ data: order })
+  // detalle del pedido: productos, cantidades y precios de cada ítem
+  res.json({ data: { ...order, items: await repository.findItems(order._id!) } })
 }
 
 async function add(req: Request, res: Response) {
@@ -78,18 +78,15 @@ async function update(req: Request, res: Response) {
     return res.status(400).send({ message: "Id de pedido inválido" })
   }
 
+  if (req.body.status !== undefined) {
+    return res.status(400).send({ message: "El estado se cambia con PATCH /api/orders/:id/status" })
+  }
   const input = req.body.sanitizedInput as Record<string, unknown>
   if (Object.keys(input).length === 0) {
     return res.status(400).send({ message: "No hay campos para actualizar" })
   }
-  if ("userId" in input && parseObjectId(input.userId) === null) {
+  if (parseObjectId(input.userId) === null) {
     return res.status(400).send({ message: "userId inválido" })
-  }
-  if ("status" in input) {
-    const statusError = validateStatus(input.status)
-    if (statusError) {
-      return res.status(400).send({ message: statusError })
-    }
   }
 
   const existing = await repository.findOne({ id })
@@ -97,23 +94,55 @@ async function update(req: Request, res: Response) {
     return res.status(404).send({ message: "Pedido no encontrado" })
   }
 
-  const fields: Partial<Order> = {}
-  if ("userId" in input) {
-    if (existing.status !== "pendiente") {
-      return res.status(409).send({ message: "Solo se puede cambiar el usuario de un pedido pendiente" })
-    }
-    if (!(await userExists(input.userId))) {
-      return res.status(404).send({ message: "Usuario no encontrado" })
-    }
-    fields.userId = parseObjectId(input.userId)!
+  if (existing.status !== "pendiente") {
+    return res.status(409).send({ message: "Solo se puede cambiar el usuario de un pedido pendiente" })
   }
-  // shortcut: cualquier cambio de estado es válido; la Fase 4 agrega el orden pendiente → pagado → enviado → entregado
-  if ("status" in input) {
-    fields.status = input.status as OrderStatus
+  if (!(await userExists(input.userId))) {
+    return res.status(404).send({ message: "Usuario no encontrado" })
   }
 
-  const order = await repository.update(id, fields as Order)
+  const order = await repository.update(id, { userId: parseObjectId(input.userId)! } as Order)
   return res.status(200).send({ message: "Pedido actualizado", data: order })
+}
+
+// Epic 2: avanza el pedido al estado siguiente; al pasar a pagado se descuenta el stock
+async function changeStatus(req: Request, res: Response) {
+  const id = req.params.id as string
+  if (!parseObjectId(id)) {
+    return res.status(400).send({ message: "Id de pedido inválido" })
+  }
+  const statusError = validateStatus(req.body.status)
+  if (statusError) {
+    return res.status(400).send({ message: statusError })
+  }
+  const status = req.body.status as OrderStatus
+
+  const existing = await repository.findOne({ id })
+  if (!existing) {
+    return res.status(404).send({ message: "Pedido no encontrado" })
+  }
+
+  const next = NEXT_STATUS[existing.status]
+  if (status !== next) {
+    const allowed = next ? `solo puede pasar a ${next}` : "ya no puede cambiar de estado"
+    return res.status(409).send({ message: `Un pedido ${existing.status} ${allowed}` })
+  }
+  if (status === "pagado" && (await repository.findItems(existing._id!)).length === 0) {
+    return res.status(409).send({ message: "No se puede pagar un pedido sin ítems" })
+  }
+
+  try {
+    const order = await repository.changeStatus(existing._id!, existing.status, status)
+    if (!order) {
+      return res.status(409).send({ message: "El pedido cambió de estado mientras se procesaba; volvé a intentar" })
+    }
+    return res.status(200).send({ message: `Pedido ${status}`, data: order })
+  } catch (err) {
+    if (err instanceof InsufficientStockError) {
+      return res.status(409).send({ message: "Stock insuficiente para pagar el pedido", data: { productId: err.productId } })
+    }
+    throw err
+  }
 }
 
 async function remove(req: Request, res: Response) {
@@ -185,9 +214,9 @@ async function checkout(req: Request, res: Response) {
   })
   const total = orderItems.reduce((sum, item) => sum + item.subtotal, 0)
 
-  // shortcut: el stock se valida acá pero se descuenta al pagar (Fase 4), que lo vuelve a validar
+  // el stock se valida acá y se descuenta recién al pagar (changeStatus), que lo vuelve a validar
   const result = await repository.addWithItems(new Order(parseObjectId(userId)!, new Date(), "pendiente", total), orderItems)
   return res.status(201).send({ message: "Pedido creado", data: result })
 }
 
-export { sanitizeOrderInput, findAll, findOne, add, update, remove, checkout }
+export { sanitizeOrderInput, findAll, findOne, add, update, remove, checkout, changeStatus }
