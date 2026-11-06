@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { sanitizeOrderInput, findAll, findOne, add, update, remove, checkout, changeStatus } from "./order.controler.js";
+import { sanitizeOrderInput, findAll, findOne, add, update, remove, checkout, changeStatus } from "./order.controller.js";
 
 export const orderRouter = Router()
 

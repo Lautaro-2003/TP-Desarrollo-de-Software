@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { sanitizeDiscountInput, findAll, findOne, add, update, remove } from "./discount.controler.js";
+import { sanitizeDiscountInput, findAll, findOne, add, update, remove } from "./discount.controller.js";
 
 export const discountRouter = Router()
 

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { sanitizeCategoryInput, findAll, findOne, add, update, remove } from "./category.controler.js";
+import { sanitizeCategoryInput, findAll, findOne, add, update, remove } from "./category.controller.js";
 
 export const categoryRouter = Router()
 
