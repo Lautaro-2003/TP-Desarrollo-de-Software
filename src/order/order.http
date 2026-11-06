@@ -28,6 +28,46 @@ Content-Type: application/json
   "userId": "674a1b2c3d4e5f6789012399"
 }
 
+### checkout: 2 RTX 4070 + 1 teclado (el teclado repetido se suma) → total 800*2 + 120*3 = 1960
+POST http://localhost:3000/api/orders/checkout
+Content-Type: application/json
+
+{
+  "userId": "674a1b2c3d4e5f678901234b",
+  "items": [
+    { "productId": "674a1b2c3d4e5f6789012349", "quantity": 2 },
+    { "productId": "674a1b2c3d4e5f678901234c", "quantity": 1 },
+    { "productId": "674a1b2c3d4e5f678901234c", "quantity": 2 }
+  ]
+}
+
+### checkout con stock insuficiente (hay 5 RTX 4070)
+POST http://localhost:3000/api/orders/checkout
+Content-Type: application/json
+
+{
+  "userId": "674a1b2c3d4e5f678901234b",
+  "items": [{ "productId": "674a1b2c3d4e5f6789012349", "quantity": 6 }]
+}
+
+### checkout con carrito vacío
+POST http://localhost:3000/api/orders/checkout
+Content-Type: application/json
+
+{
+  "userId": "674a1b2c3d4e5f678901234b",
+  "items": []
+}
+
+### checkout con producto inexistente
+POST http://localhost:3000/api/orders/checkout
+Content-Type: application/json
+
+{
+  "userId": "674a1b2c3d4e5f678901234b",
+  "items": [{ "productId": "674a1b2c3d4e5f6789012399", "quantity": 1 }]
+}
+
 ### cambiar estado
 PATCH http://localhost:3000/api/orders/674a1b2c3d4e5f6789012346
 Content-Type: application/json

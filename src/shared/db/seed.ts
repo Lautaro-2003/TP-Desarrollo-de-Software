@@ -52,6 +52,21 @@ await db.collection("products").updateOne(
   { upsert: true }
 )
 
+await db.collection("products").updateOne(
+  { _id: new ObjectId("674a1b2c3d4e5f678901234c") },
+  {
+    $setOnInsert: {
+      name: "Teclado mecánico",
+      description: "Teclado mecánico con switches rojos y retroiluminación",
+      price: 120,
+      stock: 10,
+      status: "disponible",
+      categoryId: new ObjectId("674a1b2c3d4e5f6789012347"),
+    },
+  },
+  { upsert: true }
+)
+
 await db.collection("users").updateOne(
   { _id: new ObjectId("674a1b2c3d4e5f678901234a") },
   {
