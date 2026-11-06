@@ -4,8 +4,24 @@ import { OrderItem } from "./orderItem.entity.js"
 import { db } from "../shared/db/conn.js"
 import { parseObjectId } from "../shared/objectId.js"
 import { Product } from "../product/product.entity.js"
+import { Order } from "../order/order.entity.js"
+import { OrderRepository } from "../order/order.Repository.js"
+import { ObjectId } from "mongodb"
 
 const repository = new OrderItemRepository()
+const orderRepository = new OrderRepository()
+
+// los ítems solo se pueden tocar mientras el pedido está pendiente
+async function checkOrderEditable(orderId: ObjectId): Promise<{ status: number; message: string } | null> {
+  const order = await db.collection<Order>("orders").findOne({ _id: orderId })
+  if (!order) {
+    return { status: 404, message: "Pedido no encontrado" }
+  }
+  if (order.status !== "pendiente") {
+    return { status: 409, message: "Solo se pueden modificar ítems de un pedido pendiente" }
+  }
+  return null
+}
 
 function sanitizeOrderItemInput(req: Request, res: Response, next: NextFunction) {
   req.body.sanitizedInput = {
@@ -77,9 +93,9 @@ async function add(req: Request, res: Response) {
   const productId = parseObjectId(input.productId)!
   const quantity = input.quantity as number
 
-  const order = await db.collection("orders").findOne({ _id: orderId })
-  if (!order) {
-    return res.status(404).send({ message: "Pedido no encontrado" })
+  const orderError = await checkOrderEditable(orderId)
+  if (orderError) {
+    return res.status(orderError.status).send({ message: orderError.message })
   }
 
   const product = await db.collection<Product>("products").findOne({ _id: productId })
@@ -92,6 +108,7 @@ async function add(req: Request, res: Response) {
 
   const orderItemInput = new OrderItem(orderId, productId, quantity, unitPrice, subtotal)
   const orderItem = await repository.add(orderItemInput)
+  await orderRepository.recalculateTotal(orderId)
   return res.status(201).send({ message: "Ítem de pedido creado", data: orderItem })
 }
 
@@ -120,10 +137,11 @@ async function update(req: Request, res: Response) {
   const productId = "productId" in input ? parseObjectId(input.productId)! : existing.productId
   const quantity = "quantity" in input ? (input.quantity as number) : existing.quantity
 
-  if ("orderId" in input) {
-    const order = await db.collection("orders").findOne({ _id: orderId })
-    if (!order) {
-      return res.status(404).send({ message: "Pedido no encontrado" })
+  // tanto el pedido actual como el nuevo (si se mueve el ítem) tienen que estar pendientes
+  for (const affectedOrderId of new Set([existing.orderId.toString(), orderId.toString()])) {
+    const orderError = await checkOrderEditable(new ObjectId(affectedOrderId))
+    if (orderError) {
+      return res.status(orderError.status).send({ message: orderError.message })
     }
   }
 
@@ -147,6 +165,10 @@ async function update(req: Request, res: Response) {
   }
 
   const orderItem = await repository.update(id, merged as OrderItem)
+  await orderRepository.recalculateTotal(orderId)
+  if (!existing.orderId.equals(orderId)) {
+    await orderRepository.recalculateTotal(existing.orderId)
+  }
   return res.status(200).send({ message: "Ítem de pedido actualizado", data: orderItem })
 }
 
@@ -156,10 +178,18 @@ async function remove(req: Request, res: Response) {
     return res.status(400).send({ message: "Id de ítem de pedido inválido" })
   }
 
-  const orderItem = await repository.delete({ id })
-  if (!orderItem) {
+  const existing = await repository.findOne({ id })
+  if (!existing) {
     return res.status(404).send({ message: "Ítem de pedido no encontrado" })
   }
+
+  const orderError = await checkOrderEditable(existing.orderId)
+  if (orderError) {
+    return res.status(orderError.status).send({ message: orderError.message })
+  }
+
+  await repository.delete({ id })
+  await orderRepository.recalculateTotal(existing.orderId)
   res.status(200).send({ message: "Ítem de pedido eliminado" })
 }
 
