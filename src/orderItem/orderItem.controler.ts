@@ -7,9 +7,18 @@ import { Product } from "../product/product.entity.js"
 import { Order } from "../order/order.entity.js"
 import { OrderRepository } from "../order/order.Repository.js"
 import { ObjectId } from "mongodb"
+import { DiscountRepository, applyDiscount } from "../discount/discount.Repository.js"
+import { roundCents } from "../shared/money.js"
 
 const repository = new OrderItemRepository()
 const orderRepository = new OrderRepository()
+const discountRepository = new DiscountRepository()
+
+// precio que se congela en el ítem: precio actual menos el descuento vigente de la categoría
+async function currentPrice(product: Product): Promise<number> {
+  const discounts = await discountRepository.bestActive([product.categoryId])
+  return applyDiscount(product.price, discounts.get(product.categoryId.toString()) ?? 0)
+}
 
 // los ítems solo se pueden tocar mientras el pedido está pendiente
 async function checkOrderEditable(orderId: ObjectId): Promise<{ status: number; message: string } | null> {
@@ -103,8 +112,8 @@ async function add(req: Request, res: Response) {
     return res.status(404).send({ message: "Producto no encontrado" })
   }
 
-  const unitPrice = product.price
-  const subtotal = quantity * unitPrice
+  const unitPrice = await currentPrice(product)
+  const subtotal = roundCents(quantity * unitPrice)
 
   const orderItemInput = new OrderItem(orderId, productId, quantity, unitPrice, subtotal)
   const orderItem = await repository.add(orderItemInput)
@@ -151,10 +160,10 @@ async function update(req: Request, res: Response) {
     if (!product) {
       return res.status(404).send({ message: "Producto no encontrado" })
     }
-    unitPrice = product.price
+    unitPrice = await currentPrice(product)
   }
 
-  const subtotal = quantity * unitPrice
+  const subtotal = roundCents(quantity * unitPrice)
 
   const merged = {
     orderId,

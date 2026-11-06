@@ -4,8 +4,11 @@ import { Order, ORDER_STATUSES, OrderStatus, NEXT_STATUS } from "./order.entity.
 import { db } from "../shared/db/conn.js"
 import { parseObjectId } from "../shared/objectId.js"
 import { Product } from "../product/product.entity.js"
+import { DiscountRepository, applyDiscount } from "../discount/discount.Repository.js"
+import { roundCents } from "../shared/money.js"
 
 const repository = new OrderRepository()
+const discountRepository = new DiscountRepository()
 
 function sanitizeOrderInput(req: Request, res: Response, next: NextFunction) {
   // date y total no se aceptan del cliente: los define el sistema; el estado se cambia con PATCH /:id/status
@@ -207,12 +210,14 @@ async function checkout(req: Request, res: Response) {
     })
   }
 
-  // el precio unitario se congela con el precio actual del producto
+  // el precio unitario se congela con el precio actual del producto menos el descuento vigente de su categoría
+  const discounts = await discountRepository.bestActive(products.map((p) => p.categoryId))
   const orderItems = products.map((p) => {
     const quantity = quantities.get(p._id!.toString())!
-    return { productId: p._id!, quantity, unitPrice: p.price, subtotal: quantity * p.price }
+    const unitPrice = applyDiscount(p.price, discounts.get(p.categoryId.toString()) ?? 0)
+    return { productId: p._id!, quantity, unitPrice, subtotal: roundCents(quantity * unitPrice) }
   })
-  const total = orderItems.reduce((sum, item) => sum + item.subtotal, 0)
+  const total = roundCents(orderItems.reduce((sum, item) => sum + item.subtotal, 0))
 
   // el stock se valida acá y se descuenta recién al pagar (changeStatus), que lo vuelve a validar
   const result = await repository.addWithItems(new Order(parseObjectId(userId)!, new Date(), "pendiente", total), orderItems)
