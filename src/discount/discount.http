@@ -1,3 +1,23 @@
+### iniciar sesión como admin (ejecutar primero)
+# @name loginAdmin
+POST http://localhost:3000/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@tienda.com",
+  "password": "admin1234"
+}
+
+### iniciar sesión como cliente (Juan Pérez)
+# @name loginCliente
+POST http://localhost:3000/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "juan.perez@mail.com",
+  "password": "cliente1234"
+}
+
 ### listar todos
 GET http://localhost:3000/api/discounts
 
@@ -6,6 +26,7 @@ GET http://localhost:3000/api/discounts?categoryId=674a1b2c3d4e5f6789012347
 
 ### crear: 15% en Periféricos durante noviembre y diciembre 2026
 POST http://localhost:3000/api/discounts
+Authorization: Bearer {{loginAdmin.response.body.data.token}}
 Content-Type: application/json
 
 {
@@ -17,15 +38,16 @@ Content-Type: application/json
 
 ### ver el descuento aplicado: el teclado (120) queda a 102 en el pedido
 POST http://localhost:3000/api/orders/checkout
+Authorization: Bearer {{loginCliente.response.body.data.token}}
 Content-Type: application/json
 
 {
-  "userId": "674a1b2c3d4e5f678901234b",
   "items": [{ "productId": "674a1b2c3d4e5f678901234c", "quantity": 1 }]
 }
 
 ### porcentaje inválido (400)
 POST http://localhost:3000/api/discounts
+Authorization: Bearer {{loginAdmin.response.body.data.token}}
 Content-Type: application/json
 
 {
@@ -37,6 +59,7 @@ Content-Type: application/json
 
 ### fin anterior al inicio (400)
 POST http://localhost:3000/api/discounts
+Authorization: Bearer {{loginAdmin.response.body.data.token}}
 Content-Type: application/json
 
 {
@@ -48,6 +71,7 @@ Content-Type: application/json
 
 ### categoría inexistente (404)
 POST http://localhost:3000/api/discounts
+Authorization: Bearer {{loginAdmin.response.body.data.token}}
 Content-Type: application/json
 
 {
@@ -59,6 +83,7 @@ Content-Type: application/json
 
 ### modificar el porcentaje (reemplazar el id)
 PATCH http://localhost:3000/api/discounts/REEMPLAZAR_ID
+Authorization: Bearer {{loginAdmin.response.body.data.token}}
 Content-Type: application/json
 
 {
@@ -67,3 +92,4 @@ Content-Type: application/json
 
 ### eliminar
 DELETE http://localhost:3000/api/discounts/REEMPLAZAR_ID
+Authorization: Bearer {{loginAdmin.response.body.data.token}}

@@ -1,0 +1,48 @@
+### registrarse (crea siempre un cliente)
+POST http://localhost:3000/api/auth/register
+Content-Type: application/json
+
+{
+  "name": "María Gómez",
+  "email": "maria.gomez@mail.com",
+  "address": "Córdoba 1500, Rosario",
+  "password": "maria12345"
+}
+
+### registrarse como admin (403: solo un admin asigna roles)
+POST http://localhost:3000/api/auth/register
+Content-Type: application/json
+
+{
+  "name": "María Gómez",
+  "email": "otra@mail.com",
+  "address": "Córdoba 1500, Rosario",
+  "password": "maria12345",
+  "role": "admin"
+}
+
+### iniciar sesión
+# @name login
+POST http://localhost:3000/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "juan.perez@mail.com",
+  "password": "cliente1234"
+}
+
+### contraseña incorrecta (401)
+POST http://localhost:3000/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "juan.perez@mail.com",
+  "password": "incorrecta"
+}
+
+### ver el usuario de la sesión
+GET http://localhost:3000/api/auth/me
+Authorization: Bearer {{login.response.body.data.token}}
+
+### sin token (401)
+GET http://localhost:3000/api/auth/me

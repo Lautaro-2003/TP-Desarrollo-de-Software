@@ -1,16 +1,37 @@
+### iniciar sesión como admin (ejecutar primero)
+# @name loginAdmin
+POST http://localhost:3000/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@tienda.com",
+  "password": "admin1234"
+}
+
+### iniciar sesión como cliente (Juan Pérez)
+# @name loginCliente
+POST http://localhost:3000/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "juan.perez@mail.com",
+  "password": "cliente1234"
+}
+
 ### Para reseñar hay que comprar: 1) checkout, 2) pagar el pedido, 3) crear la reseña
 
 ### 1) checkout de un teclado para Juan Pérez (copiar el _id del pedido de la respuesta)
 POST http://localhost:3000/api/orders/checkout
+Authorization: Bearer {{loginCliente.response.body.data.token}}
 Content-Type: application/json
 
 {
-  "userId": "674a1b2c3d4e5f678901234b",
   "items": [{ "productId": "674a1b2c3d4e5f678901234c", "quantity": 1 }]
 }
 
 ### 2) pagar el pedido
 PATCH http://localhost:3000/api/orders/REEMPLAZAR_ID_PEDIDO/status
+Authorization: Bearer {{loginCliente.response.body.data.token}}
 Content-Type: application/json
 
 {
@@ -19,10 +40,10 @@ Content-Type: application/json
 
 ### 3) crear la reseña
 POST http://localhost:3000/api/reviews
+Authorization: Bearer {{loginCliente.response.body.data.token}}
 Content-Type: application/json
 
 {
-  "userId": "674a1b2c3d4e5f678901234b",
   "productId": "674a1b2c3d4e5f678901234c",
   "rating": 5,
   "comment": "Muy buen teclado, los switches son suaves"
@@ -36,10 +57,10 @@ GET http://localhost:3000/api/reviews?productId=674a1b2c3d4e5f678901234c
 
 ### reseñar sin haber comprado (403: el admin no compró nada)
 POST http://localhost:3000/api/reviews
+Authorization: Bearer {{loginAdmin.response.body.data.token}}
 Content-Type: application/json
 
 {
-  "userId": "674a1b2c3d4e5f678901234a",
   "productId": "674a1b2c3d4e5f678901234c",
   "rating": 1,
   "comment": "No lo compré"
@@ -47,10 +68,10 @@ Content-Type: application/json
 
 ### calificación inválida (400)
 POST http://localhost:3000/api/reviews
+Authorization: Bearer {{loginCliente.response.body.data.token}}
 Content-Type: application/json
 
 {
-  "userId": "674a1b2c3d4e5f678901234b",
   "productId": "674a1b2c3d4e5f678901234c",
   "rating": 6,
   "comment": "Fuera de rango"
@@ -58,6 +79,7 @@ Content-Type: application/json
 
 ### modificar la reseña (solo calificación y comentario)
 PATCH http://localhost:3000/api/reviews/REEMPLAZAR_ID_RESENA
+Authorization: Bearer {{loginCliente.response.body.data.token}}
 Content-Type: application/json
 
 {
@@ -66,3 +88,4 @@ Content-Type: application/json
 
 ### eliminar la reseña
 DELETE http://localhost:3000/api/reviews/REEMPLAZAR_ID_RESENA
+Authorization: Bearer {{loginCliente.response.body.data.token}}

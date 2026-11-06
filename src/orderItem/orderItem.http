@@ -1,5 +1,18 @@
+# los ítems sueltos son solo para admin; el cliente arma su pedido con el checkout
+
+### iniciar sesión como admin (ejecutar primero)
+# @name loginAdmin
+POST http://localhost:3000/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@tienda.com",
+  "password": "admin1234"
+}
+
 ### crear (el precio lo pone el servidor y se recalcula el total del pedido)
 POST http://localhost:3000/api/order-items
+Authorization: Bearer {{loginAdmin.response.body.data.token}}
 Content-Type: application/json
 
 {
@@ -12,6 +25,7 @@ Content-Type: application/json
 
 ### cantidad inválida
 POST http://localhost:3000/api/order-items
+Authorization: Bearer {{loginAdmin.response.body.data.token}}
 Content-Type: application/json
 
 {
@@ -22,6 +36,7 @@ Content-Type: application/json
 
 ### pedido inexistente
 POST http://localhost:3000/api/order-items
+Authorization: Bearer {{loginAdmin.response.body.data.token}}
 Content-Type: application/json
 
 {
@@ -32,6 +47,8 @@ Content-Type: application/json
 
 ### listar todos
 GET http://localhost:3000/api/order-items
+Authorization: Bearer {{loginAdmin.response.body.data.token}}
 
 ### quitar un ítem (reemplazar el id; el pedido tiene que estar pendiente)
 DELETE http://localhost:3000/api/order-items/REEMPLAZAR_ID
+Authorization: Bearer {{loginAdmin.response.body.data.token}}

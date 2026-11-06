@@ -1,3 +1,13 @@
+### iniciar sesión como admin (ejecutar primero)
+# @name loginAdmin
+POST http://localhost:3000/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@tienda.com",
+  "password": "admin1234"
+}
+
 ### listar todos
 GET http://localhost:3000/api/products
 
@@ -12,6 +22,7 @@ GET http://localhost:3000/api/products?categoryId=674a1b2c3d4e5f6789012348
 
 ### crear
 POST http://localhost:3000/api/products
+Authorization: Bearer {{loginAdmin.response.body.data.token}}
 Content-Type: application/json
 
 {
@@ -25,6 +36,7 @@ Content-Type: application/json
 
 ### crear sin categoría existente
 POST http://localhost:3000/api/products
+Authorization: Bearer {{loginAdmin.response.body.data.token}}
 Content-Type: application/json
 
 {
@@ -38,6 +50,7 @@ Content-Type: application/json
 
 ### crear con precio inválido
 POST http://localhost:3000/api/products
+Authorization: Bearer {{loginAdmin.response.body.data.token}}
 Content-Type: application/json
 
 {
