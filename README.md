@@ -49,3 +49,6 @@ Casos de Uso / Epics (Valor de Negocio)
       Lógica: Los usuarios que hayan comprado un producto pueden dejar una reseña con una calificación (por ejemplo, de 1 a 5 estrellas) y un comentario. El sistema asocia la reseña al producto y al usuario, y calcula un promedio de calificaciones para mostrar en la tienda. También se pueden listar todas las reseñas de un producto.
 
 
+
+
+ESTADO Y PENDIENTES: ver [ROADMAP.md](ROADMAP.md). El desarrollo se hace en la rama `Desarrollo`; `main` recibe un único merge al terminar el proyecto.
