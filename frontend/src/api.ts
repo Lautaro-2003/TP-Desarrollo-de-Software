@@ -55,3 +55,20 @@ export function discountFor(discounts: Discount[], categoryId: string, now = new
     .reduce((best, d) => Math.max(best, d.percentage), 0)
 }
 export const withDiscount = (price: number, percentage: number) => Math.round(price * (100 - percentage)) / 100
+
+// prefijo serigrafiado de cada categoría; las que se creen después usan sus tres primeras letras
+const PREFIX: Record<string, string> = { "Placas de Video": "VGA", Periféricos: "PER", Almacenamiento: "ALM", Monitores: "MON" }
+export const prefixFor = (name = "") =>
+  PREFIX[name] ?? (name.normalize("NFD").replace(/[^A-Za-z]/g, "").slice(0, 3).toUpperCase() || "REF")
+
+// designador de cada producto (VGA1, ALM2): prefijo de su categoría + su orden de alta dentro de ella
+export function designators(products: Product[], categories: Category[]) {
+  const refs = new Map<string, string>()
+  const count: Record<string, number> = {}
+  for (const p of [...products].sort((a, b) => a._id.localeCompare(b._id))) {
+    const prefix = prefixFor(categories.find((c) => c._id === p.categoryId)?.name)
+    count[prefix] = (count[prefix] ?? 0) + 1
+    refs.set(p._id, `${prefix}${count[prefix]}`)
+  }
+  return refs
+}
