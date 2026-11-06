@@ -1,9 +1,22 @@
-import { MongoClient, Db } from "mongodb"
+import { Db, MongoClient, ServerApiVersion } from "mongodb"
 
-const connectionStr = "mongodb://127.0.0.1:27017/"
+const uri = process.env.MONGODB_URI
+if (!uri) {
+  throw new Error("MONGODB_URI es obligatorio")
+}
 
-const cli = new MongoClient(connectionStr)
+const dbName = process.env.MONGODB_DB || "tienda"
+
+const cli = new MongoClient(uri, {
+  serverApi: {
+    version: ServerApiVersion.v1,
+    strict: true,
+    deprecationErrors: true,
+  },
+})
 
 await cli.connect()
 
-export let db: Db = cli.db('05-03-db')
+export const db: Db = cli.db(dbName)
+
+await db.command({ ping: 1 })

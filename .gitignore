@@ -13,6 +13,7 @@ Thumbs.db
 
 # ignore built ts files
 dist/**/*
+*.tsbuildinfo
 
 # vscode
 .vscode/*
@@ -30,3 +31,20 @@ dist/**/*
 
 # TypeScript incremental build info
 *.tsbuildinfo
+
+# Agent skills and skill-generated artifacts (local only; never commit)
+.agents/
+.claude/
+.cursor/skills/
+skills-lock.json
+AGENTS.md
+CLAUDE.md
+PRODUCT.md
+DESIGN.md
+CONTEXT.md
+CONTEXT-MAP.md
+docs/adr/
+.scratch/
+
+# graphify knowledge graph (generated)
+graphify-out/

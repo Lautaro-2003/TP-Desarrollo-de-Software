@@ -6,20 +6,21 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "tsc -p ./tsconfig.json",
-    "start:dev": "tsc-watch --noClear -p ./tsconfig.json --onSuccess \"node ./dist/app.js\""
+    "start:dev": "tsc-watch --noClear -p ./tsconfig.json --onSuccess \"node --env-file=.env ./dist/app.js\"",
+    "seed": "tsc -p ./tsconfig.json && node --env-file=.env ./dist/shared/db/seed.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "module",
   "devDependencies": {
-    "@types/express": "^5.0.6",
+    "@types/express": "5.0.6",
     "@types/node": "26.1.0",
     "tsc-watch": "6.3.1",
     "typescript": "5.9.3"
   },
   "dependencies": {
-    "express": "^5.2.1",
+    "express": "5.2.1",
     "mongodb": "7.7.0"
   }
 }
