@@ -327,3 +327,78 @@ describe("estados del pedido (Epic 2)", () => {
     assert.equal(await stock(TECLADO), teclado - 2)
   })
 })
+
+// va después de "estados del pedido": Juan ya tiene pedidos pagados con la RTX y el teclado
+describe("reseñas (Epic 3)", () => {
+  let luis: string
+  const rating = async (id: string) => (await api("GET", `/products/${id}`)).body.data.rating
+  const review = (body: Record<string, unknown>) => api("POST", "/reviews", body)
+
+  before(async () => {
+    luis = (await api("POST", "/users", { name: "Luis", email: "luis@mail.com", address: "Calle 2" })).body.data._id
+  })
+
+  test("solo puede reseñar quien compró el producto (pedido pagado o posterior)", async () => {
+    const base = { productId: TECLADO, rating: 5, comment: "Muy bueno" }
+    assert.equal((await review({ ...base, userId: luis })).status, 403)
+
+    // un pedido pendiente todavía no cuenta como compra
+    const pending = (await api("POST", "/orders/checkout", { userId: luis, items: [{ productId: TECLADO, quantity: 1 }] })).body.data.order._id
+    assert.equal((await review({ ...base, userId: luis })).status, 403)
+    await api("DELETE", `/orders/${pending}`)
+
+    assert.equal((await review({ ...base, userId: NO_EXISTE })).status, 404)
+    assert.equal((await review({ ...base, userId: JUAN, productId: NO_EXISTE })).status, 404)
+    assert.equal((await review({ ...base, userId: "xx" })).status, 400)
+    assert.equal((await review({ ...base, userId: JUAN, productId: "xx" })).status, 400)
+  })
+
+  test("valida calificación y comentario", async () => {
+    const base = { userId: JUAN, productId: TECLADO, rating: 4, comment: "Bien" }
+    for (const value of [0, 6, 3.5, "5", null]) {
+      assert.equal((await review({ ...base, rating: value })).status, 400, `rating ${value}`)
+    }
+    assert.equal((await review({ ...base, comment: "   " })).status, 400)
+    assert.equal((await review({ ...base, comment: "a".repeat(1001) })).status, 400)
+    assert.equal((await review({ userId: JUAN, productId: TECLADO, rating: 4 })).status, 400)
+  })
+
+  test("el promedio del producto se recalcula al crear, modificar y borrar reseñas", async () => {
+    assert.equal(await rating(RTX), undefined) // sin reseñas no hay promedio
+
+    const juanReview = await review({ userId: JUAN, productId: TECLADO, rating: 4, comment: "  Buen teclado  " })
+    assert.equal(juanReview.status, 201)
+    assert.equal(juanReview.body.data.comment, "Buen teclado")
+    assert.deepEqual(await rating(TECLADO), { average: 4, count: 1 })
+    assert.equal((await review({ userId: JUAN, productId: TECLADO, rating: 1, comment: "otra" })).status, 409)
+
+    // Luis compra y paga el teclado: ahora sí puede reseñarlo
+    const order = (await api("POST", "/orders/checkout", { userId: luis, items: [{ productId: TECLADO, quantity: 1 }] })).body.data.order._id
+    await api("PATCH", `/orders/${order}/status`, { status: "pagado" })
+    const luisReview = (await review({ userId: luis, productId: TECLADO, rating: 1, comment: "Llegó fallado" })).body.data
+    assert.deepEqual(await rating(TECLADO), { average: 2.5, count: 2 })
+
+    const list = await api("GET", `/reviews?productId=${TECLADO}`)
+    assert.equal(list.body.data.length, 2)
+    assert.equal((await api("GET", "/reviews?productId=xx")).status, 400)
+
+    assert.equal((await api("PATCH", `/reviews/${luisReview._id}`, { rating: 2 })).status, 200)
+    assert.deepEqual(await rating(TECLADO), { average: 3, count: 2 })
+    assert.equal((await api("PATCH", `/reviews/${luisReview._id}`, { userId: JUAN })).status, 400)
+    assert.equal((await api("PATCH", `/reviews/${luisReview._id}`, {})).status, 400)
+    assert.equal((await api("PATCH", `/reviews/${luisReview._id}`, { rating: 9 })).status, 400)
+    assert.equal((await api("PATCH", `/reviews/${NO_EXISTE}`, { rating: 3 })).status, 404)
+
+    assert.equal((await api("DELETE", `/reviews/${juanReview.body.data._id}`)).status, 200)
+    assert.deepEqual(await rating(TECLADO), { average: 2, count: 1 })
+    assert.equal((await api("DELETE", `/reviews/${luisReview._id}`)).status, 200)
+    assert.equal(await rating(TECLADO), undefined)
+    assert.equal((await api("DELETE", `/reviews/${luisReview._id}`)).status, 404)
+  })
+
+  test("ids inválidos e inexistentes", async () => {
+    assert.equal((await api("GET", "/reviews/xx")).status, 400)
+    assert.equal((await api("GET", `/reviews/${NO_EXISTE}`)).status, 404)
+    assert.equal((await api("DELETE", "/reviews/xx")).status, 400)
+  })
+})
