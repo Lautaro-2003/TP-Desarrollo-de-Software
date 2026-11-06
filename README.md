@@ -80,6 +80,7 @@ RAMAS: el desarrollo se hace en la rama `Desarrollo`; `main` recibe un único me
 | Categorías | `/api/categories` | CRUD; no se borra una categoría con productos |
 | Productos | `/api/products` | CRUD; filtro `?categoryId=`; requiere categoría existente |
 | Usuarios | `/api/users` | CRUD; email único; rol `cliente` (por defecto) o `admin` |
-| Pedidos | `/api/orders` | CRUD; filtro `?userId=`; solo se modifica/borra un pedido pendiente |
+| Pedidos | `/api/orders` | CRUD; filtro `?userId=`; el detalle (`GET /:id`) incluye los ítems; solo se modifica/borra un pedido pendiente |
+| Estado del pedido | `PATCH /api/orders/:id/status` | Avanza un paso: pendiente → pagado → enviado → entregado; al pagar descuenta el stock en una transacción |
 | Checkout | `POST /api/orders/checkout` | Recibe `{ userId, items: [{ productId, quantity }] }`, valida stock y crea el pedido con sus ítems |
 | Ítems de pedido | `/api/order-items` | El precio lo pone el servidor; recalculan el total del pedido |

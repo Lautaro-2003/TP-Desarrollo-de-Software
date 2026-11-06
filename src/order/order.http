@@ -4,7 +4,7 @@ GET http://localhost:3000/api/orders
 ### pedidos de un usuario (Juan Pérez)
 GET http://localhost:3000/api/orders?userId=674a1b2c3d4e5f678901234b
 
-### obtener uno (pedido del seed)
+### obtener uno con el detalle de sus ítems (pedido del seed)
 GET http://localhost:3000/api/orders/674a1b2c3d4e5f6789012346
 
 ### id inválido
@@ -68,20 +68,60 @@ Content-Type: application/json
   "items": [{ "productId": "674a1b2c3d4e5f6789012399", "quantity": 1 }]
 }
 
-### cambiar estado
-PATCH http://localhost:3000/api/orders/674a1b2c3d4e5f6789012346
+### pagar (reemplazar el id por el de un pedido con ítems; descuenta el stock)
+PATCH http://localhost:3000/api/orders/REEMPLAZAR_ID/status
 Content-Type: application/json
 
 {
   "status": "pagado"
 }
 
-### estado inválido
-PATCH http://localhost:3000/api/orders/674a1b2c3d4e5f6789012346
+### enviar
+PATCH http://localhost:3000/api/orders/REEMPLAZAR_ID/status
+Content-Type: application/json
+
+{
+  "status": "enviado"
+}
+
+### entregar
+PATCH http://localhost:3000/api/orders/REEMPLAZAR_ID/status
+Content-Type: application/json
+
+{
+  "status": "entregado"
+}
+
+### saltear un estado (409: un pedido pendiente solo puede pasar a pagado)
+PATCH http://localhost:3000/api/orders/674a1b2c3d4e5f6789012346/status
+Content-Type: application/json
+
+{
+  "status": "entregado"
+}
+
+### pagar un pedido sin ítems (409)
+PATCH http://localhost:3000/api/orders/674a1b2c3d4e5f6789012346/status
+Content-Type: application/json
+
+{
+  "status": "pagado"
+}
+
+### estado inválido (400)
+PATCH http://localhost:3000/api/orders/674a1b2c3d4e5f6789012346/status
 Content-Type: application/json
 
 {
   "status": "cancelado"
+}
+
+### el PATCH genérico no cambia el estado (400)
+PATCH http://localhost:3000/api/orders/674a1b2c3d4e5f6789012346
+Content-Type: application/json
+
+{
+  "status": "pagado"
 }
 
 ### eliminar (solo si está pendiente; borra también sus ítems)
