@@ -67,7 +67,7 @@ RAMAS: el desarrollo se hace en la rama `Desarrollo`; `main` recibe un único me
 
 1. `npm install` y `npm install --prefix frontend`
 2. Copiar `.env.example` a `.env` y completar `MONGODB_URI` con la cadena de conexión de Atlas y `JWT_SECRET` con un secreto largo y aleatorio. Si aparece `querySrv ECONNREFUSED`, descomentar `DNS_SERVERS`.
-3. `npm run seed`: carga datos de ejemplo (categorías, productos, usuarios y un pedido)
+3. `npm run seed`: carga los datos de la demo (4 categorías, 8 productos, clientes, pedidos en todos los estados, reseñas y un descuento vigente en Almacenamiento)
 4. `npm run start:dev`: levanta la API en `http://localhost:3000/api`
 5. En otra terminal, `npm run dev --prefix frontend`: levanta la tienda en `http://localhost:5173` (Vite redirige `/api` al backend)
 
@@ -77,6 +77,8 @@ Usuarios de prueba del seed:
 |---|---|---|
 | Administrador | `admin@tienda.com` | `admin1234` |
 | Cliente | `juan.perez@mail.com` | `cliente1234` |
+| Cliente (con compras y reseñas) | `maria.gomez@mail.com` | `cliente1234` |
+| Cliente (con compras y reseñas) | `lucia.fernandez@mail.com` | `cliente1234` |
 
 ## Roles y permisos
 
