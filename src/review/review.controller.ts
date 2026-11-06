@@ -4,6 +4,7 @@ import { ReviewRepository } from "./review.Repository.js"
 import { Review } from "./review.entity.js"
 import { db } from "../shared/db/conn.js"
 import { parseObjectId } from "../shared/objectId.js"
+import { canAccess } from "../auth/auth.js"
 
 const repository = new ReviewRepository()
 
@@ -60,7 +61,8 @@ async function findOne(req: Request, res: Response) {
 
 async function add(req: Request, res: Response) {
   const input = req.body.sanitizedInput as Record<string, unknown>
-  const userId = parseObjectId(input.userId)
+  // el autor es siempre quien inició sesión: no se puede reseñar en nombre de otro
+  const userId = parseObjectId(req.user!.id)
   const productId = parseObjectId(input.productId)
   if (!userId) {
     return res.status(400).send({ message: "userId inválido" })
@@ -119,15 +121,20 @@ async function update(req: Request, res: Response) {
     return res.status(400).send({ message: validationError })
   }
 
+  const existing = await repository.findOne({ id })
+  if (!existing) {
+    return res.status(404).send({ message: "Reseña no encontrada" })
+  }
+  if (!canAccess(req, existing.userId)) {
+    return res.status(403).send({ message: "Solo podés modificar tus propias reseñas" })
+  }
+
   const fields: Partial<Review> = {}
   if ("rating" in input) fields.rating = input.rating as number
   if ("comment" in input) fields.comment = (input.comment as string).trim()
 
   const review = await repository.update(id, fields as Review)
-  if (!review) {
-    return res.status(404).send({ message: "Reseña no encontrada" })
-  }
-  await repository.recalculateProductRating(review.productId)
+  await repository.recalculateProductRating(existing.productId)
   return res.status(200).send({ message: "Reseña actualizada", data: review })
 }
 
@@ -137,11 +144,17 @@ async function remove(req: Request, res: Response) {
     return res.status(400).send({ message: "Id de reseña inválido" })
   }
 
-  const review = await repository.delete({ id })
-  if (!review) {
+  const existing = await repository.findOne({ id })
+  if (!existing) {
     return res.status(404).send({ message: "Reseña no encontrada" })
   }
-  await repository.recalculateProductRating(review.productId)
+  // el admin puede borrar cualquier reseña (moderación); el cliente solo las suyas
+  if (!canAccess(req, existing.userId)) {
+    return res.status(403).send({ message: "Solo podés borrar tus propias reseñas" })
+  }
+
+  await repository.delete({ id })
+  await repository.recalculateProductRating(existing.productId)
   res.status(200).send({ message: "Reseña eliminada" })
 }
 

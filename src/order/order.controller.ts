@@ -6,6 +6,7 @@ import { parseObjectId } from "../shared/objectId.js"
 import { Product } from "../product/product.entity.js"
 import { DiscountRepository, applyDiscount } from "../discount/discount.Repository.js"
 import { roundCents } from "../shared/money.js"
+import { isAdmin, canAccess } from "../auth/auth.js"
 
 const repository = new OrderRepository()
 const discountRepository = new DiscountRepository()
@@ -35,8 +36,14 @@ async function userExists(userId: unknown) {
   return !!(await db.collection("users").findOne({ _id: parseObjectId(userId)! }))
 }
 
+// el cliente compra siempre para sí mismo; el admin puede indicar para qué usuario
+function buyerId(req: Request, bodyUserId: unknown): unknown {
+  return isAdmin(req) ? (bodyUserId ?? req.user!.id) : req.user!.id
+}
+
 async function findAll(req: Request, res: Response) {
-  const userIdParam = req.query.userId
+  // el cliente solo ve sus pedidos, aunque pida los de otro
+  const userIdParam = isAdmin(req) ? req.query.userId : req.user!.id
   if (userIdParam === undefined) {
     return res.json({ data: await repository.findAll() })
   }
@@ -56,12 +63,16 @@ async function findOne(req: Request, res: Response) {
   if (!order) {
     return res.status(404).send({ message: "Pedido no encontrado" })
   }
+  if (!canAccess(req, order.userId)) {
+    return res.status(403).send({ message: "No tenés permiso para ver este pedido" })
+  }
   // detalle del pedido: productos, cantidades y precios de cada ítem
   res.json({ data: { ...order, items: await repository.findItems(order._id!) } })
 }
 
 async function add(req: Request, res: Response) {
   const input = req.body.sanitizedInput as Record<string, unknown>
+  input.userId = buyerId(req, input.userId)
   if (parseObjectId(input.userId) === null) {
     return res.status(400).send({ message: "userId inválido" })
   }
@@ -125,6 +136,11 @@ async function changeStatus(req: Request, res: Response) {
     return res.status(404).send({ message: "Pedido no encontrado" })
   }
 
+  // el cliente solo puede pagar sus pedidos; enviar y entregar es tarea del admin
+  if (status === "pagado" ? !canAccess(req, existing.userId) : !isAdmin(req)) {
+    return res.status(403).send({ message: "No tenés permiso para cambiar el estado de este pedido" })
+  }
+
   const next = NEXT_STATUS[existing.status]
   if (status !== next) {
     const allowed = next ? `solo puede pasar a ${next}` : "ya no puede cambiar de estado"
@@ -158,6 +174,9 @@ async function remove(req: Request, res: Response) {
   if (!existing) {
     return res.status(404).send({ message: "Pedido no encontrado" })
   }
+  if (!canAccess(req, existing.userId)) {
+    return res.status(403).send({ message: "No tenés permiso para borrar este pedido" })
+  }
   // un pedido pagado o posterior es historial de compras: no se borra
   if (existing.status !== "pendiente") {
     return res.status(409).send({ message: "Solo se puede dar de baja un pedido pendiente" })
@@ -169,7 +188,8 @@ async function remove(req: Request, res: Response) {
 
 // Epic 1: convierte el carrito en un pedido pendiente con sus ítems
 async function checkout(req: Request, res: Response) {
-  const { userId, items } = req.body ?? {}
+  const { items } = req.body
+  const userId = buyerId(req, req.body.userId)
 
   if (parseObjectId(userId) === null) {
     return res.status(400).send({ message: "userId inválido" })
