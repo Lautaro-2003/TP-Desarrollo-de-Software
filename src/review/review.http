@@ -1,0 +1,68 @@
+### Para reseñar hay que comprar: 1) checkout, 2) pagar el pedido, 3) crear la reseña
+
+### 1) checkout de un teclado para Juan Pérez (copiar el _id del pedido de la respuesta)
+POST http://localhost:3000/api/orders/checkout
+Content-Type: application/json
+
+{
+  "userId": "674a1b2c3d4e5f678901234b",
+  "items": [{ "productId": "674a1b2c3d4e5f678901234c", "quantity": 1 }]
+}
+
+### 2) pagar el pedido
+PATCH http://localhost:3000/api/orders/REEMPLAZAR_ID_PEDIDO/status
+Content-Type: application/json
+
+{
+  "status": "pagado"
+}
+
+### 3) crear la reseña
+POST http://localhost:3000/api/reviews
+Content-Type: application/json
+
+{
+  "userId": "674a1b2c3d4e5f678901234b",
+  "productId": "674a1b2c3d4e5f678901234c",
+  "rating": 5,
+  "comment": "Muy buen teclado, los switches son suaves"
+}
+
+### ver el promedio en el producto (campo rating)
+GET http://localhost:3000/api/products/674a1b2c3d4e5f678901234c
+
+### listar las reseñas de un producto
+GET http://localhost:3000/api/reviews?productId=674a1b2c3d4e5f678901234c
+
+### reseñar sin haber comprado (403: el admin no compró nada)
+POST http://localhost:3000/api/reviews
+Content-Type: application/json
+
+{
+  "userId": "674a1b2c3d4e5f678901234a",
+  "productId": "674a1b2c3d4e5f678901234c",
+  "rating": 1,
+  "comment": "No lo compré"
+}
+
+### calificación inválida (400)
+POST http://localhost:3000/api/reviews
+Content-Type: application/json
+
+{
+  "userId": "674a1b2c3d4e5f678901234b",
+  "productId": "674a1b2c3d4e5f678901234c",
+  "rating": 6,
+  "comment": "Fuera de rango"
+}
+
+### modificar la reseña (solo calificación y comentario)
+PATCH http://localhost:3000/api/reviews/REEMPLAZAR_ID_RESENA
+Content-Type: application/json
+
+{
+  "rating": 4
+}
+
+### eliminar la reseña
+DELETE http://localhost:3000/api/reviews/REEMPLAZAR_ID_RESENA

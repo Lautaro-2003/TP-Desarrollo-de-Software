@@ -78,9 +78,10 @@ RAMAS: el desarrollo se hace en la rama `Desarrollo`; `main` recibe un único me
 | Recurso | Ruta | Notas |
 |---|---|---|
 | Categorías | `/api/categories` | CRUD; no se borra una categoría con productos |
-| Productos | `/api/products` | CRUD; filtro `?categoryId=`; requiere categoría existente |
+| Productos | `/api/products` | CRUD; filtro `?categoryId=`; requiere categoría existente; `rating` muestra el promedio de reseñas |
 | Usuarios | `/api/users` | CRUD; email único; rol `cliente` (por defecto) o `admin` |
 | Pedidos | `/api/orders` | CRUD; filtro `?userId=`; el detalle (`GET /:id`) incluye los ítems; solo se modifica/borra un pedido pendiente |
 | Estado del pedido | `PATCH /api/orders/:id/status` | Avanza un paso: pendiente → pagado → enviado → entregado; al pagar descuenta el stock en una transacción |
 | Checkout | `POST /api/orders/checkout` | Recibe `{ userId, items: [{ productId, quantity }] }`, valida stock y crea el pedido con sus ítems |
+| Reseñas | `/api/reviews` | CRUD; filtro `?productId=`; solo reseña quien compró (pedido pagado o posterior); una por usuario y producto; el promedio queda en `rating` del producto |
 | Ítems de pedido | `/api/order-items` | El precio lo pone el servidor; recalculan el total del pedido |
