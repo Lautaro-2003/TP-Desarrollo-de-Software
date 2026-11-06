@@ -52,3 +52,34 @@ Casos de Uso / Epics (Valor de Negocio)
 
 
 RAMAS: el desarrollo se hace en la rama `Desarrollo`; `main` recibe un único merge al terminar el proyecto.
+
+
+## Tecnologías
+
+- **Node.js 24** + **TypeScript 7**
+- **Express 5**: API REST
+- **MongoDB Atlas** con el driver oficial `mongodb` 7 (transacciones para el checkout)
+- **node:test**: pruebas de integración (sin dependencias extra)
+- Archivos `.http` (extensión REST Client de VS Code) para probar cada endpoint a mano
+
+## Cómo correr el proyecto
+
+1. `npm install`
+2. Copiar `.env.example` a `.env` y completar `MONGODB_URI` con la cadena de conexión de Atlas. Si aparece `querySrv ECONNREFUSED`, descomentar `DNS_SERVERS`.
+3. `npm run seed`: carga datos de ejemplo (categorías, productos, usuarios y un pedido)
+4. `npm run start:dev`: levanta la API en `http://localhost:3000/api`
+
+## Pruebas
+
+`npm test` compila y corre las pruebas de integración contra la base `tienda_test` (se borra y se vuelve a cargar en cada corrida; la base `tienda` no se toca).
+
+## Endpoints
+
+| Recurso | Ruta | Notas |
+|---|---|---|
+| Categorías | `/api/categories` | CRUD; no se borra una categoría con productos |
+| Productos | `/api/products` | CRUD; filtro `?categoryId=`; requiere categoría existente |
+| Usuarios | `/api/users` | CRUD; email único; rol `cliente` (por defecto) o `admin` |
+| Pedidos | `/api/orders` | CRUD; filtro `?userId=`; solo se modifica/borra un pedido pendiente |
+| Checkout | `POST /api/orders/checkout` | Recibe `{ userId, items: [{ productId, quantity }] }`, valida stock y crea el pedido con sus ítems |
+| Ítems de pedido | `/api/order-items` | El precio lo pone el servidor; recalculan el total del pedido |
