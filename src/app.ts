@@ -33,6 +33,7 @@ app.use((err: unknown, _req: express.Request, res: express.Response, _next: expr
   res.status(500).send({ message: "Error interno del servidor" })
 })
 
-app.listen(3000, () => {
-  console.log("Servidor escuchando en http://localhost:3000/")
+const port = Number(process.env.PORT) || 3000
+app.listen(port, () => {
+  console.log(`Servidor escuchando en http://localhost:${port}/`)
 })
