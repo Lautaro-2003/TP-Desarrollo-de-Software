@@ -10,7 +10,7 @@ type Session = {
   logout: () => void
   cart: CartItem[]
   setQuantity: (productId: string, quantity: number) => void
-  addToCart: (productId: string) => void
+  addToCart: (productId: string, stock: number) => void
   clearCart: () => void
 }
 
@@ -65,7 +65,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     },
     cart,
     setQuantity,
-    addToCart: (productId) => setQuantity(productId, (cart.find((i) => i.productId === productId)?.quantity ?? 0) + 1),
+    addToCart: (productId, stock) =>
+      setQuantity(productId, Math.min(stock, (cart.find((i) => i.productId === productId)?.quantity ?? 0) + 1)),
     clearCart: () => setCart([]),
   }
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>

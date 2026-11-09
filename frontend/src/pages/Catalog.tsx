@@ -69,6 +69,7 @@ function SortIcon({ dir }: { dir: number }) {
 
 export default function Catalog() {
   const { user, cart, addToCart } = useSession()
+  const inCart = (id: string) => cart.find((i) => i.productId === id)?.quantity ?? 0
   const [params, setParams] = useSearchParams()
   const categoryId = params.get("categoria") ?? ""
   // null = todavía cargando (para no mostrar "no hay productos" antes de tiempo)
@@ -230,14 +231,14 @@ export default function Catalog() {
                       <td className="c-add">
                         <button
                           className="small"
-                          disabled={p.stock === 0}
+                          disabled={inCart(p._id) >= p.stock}
                           aria-label={`Agregar ${p.name} al carrito`}
                           onClick={() => {
-                            addToCart(p._id)
+                            addToCart(p._id, p.stock)
                             setAdded(p._id)
                           }}
                         >
-                          {p.stock === 0 ? "Sin stock" : "Agregar"}
+                          {p.stock === 0 ? "Sin stock" : inCart(p._id) >= p.stock ? "Máximo" : "Agregar"}
                         </button>
                       </td>
                     )}

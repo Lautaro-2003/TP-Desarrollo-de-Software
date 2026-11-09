@@ -99,7 +99,7 @@ export default function Cart() {
                       min={0}
                       max={l.product!.stock}
                       value={l.quantity}
-                      onChange={(e) => setQuantity(l.productId, Number(e.target.value))}
+                      onChange={(e) => setQuantity(l.productId, Math.min(Number(e.target.value), l.product!.stock))}
                       aria-label={`Cantidad de ${l.product!.name}`}
                     />
                   </td>
