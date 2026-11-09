@@ -22,22 +22,26 @@ export function Login() {
   }
 
   return (
-    <form onSubmit={submit} className="form narrow">
-      <h1>Ingresar</h1>
-      <label>
-        Email
-        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" />
-      </label>
-      <label>
-        Contraseña
-        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="current-password" />
-      </label>
-      {error && <p className="error">{error}</p>}
-      <button type="submit">Ingresar</button>
-      <p className="muted">
-        ¿No tenés cuenta? <Link to="/registro">Registrate</Link>
-      </p>
-    </form>
+    <section className="module auth">
+      <div className="module-head">
+        <h1>Ingresar</h1>
+      </div>
+      <form onSubmit={submit} className="form module-body">
+        <label>
+          Email
+          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" />
+        </label>
+        <label>
+          Contraseña
+          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="current-password" />
+        </label>
+        {error && <p className="error">{error}</p>}
+        <button type="submit">Ingresar</button>
+        <p className="muted">
+          ¿No tenés cuenta? <Link to="/registro">Creá una</Link>
+        </p>
+      </form>
+    </section>
   )
 }
 
@@ -65,26 +69,33 @@ export function Register() {
   }
 
   return (
-    <form onSubmit={submit} className="form narrow">
-      <h1>Crear cuenta</h1>
-      <label>
-        Nombre
-        <input {...field("name")} autoComplete="name" />
-      </label>
-      <label>
-        Email
-        <input type="email" {...field("email")} autoComplete="email" />
-      </label>
-      <label>
-        Dirección de envío
-        <input {...field("address")} autoComplete="street-address" />
-      </label>
-      <label>
-        Contraseña (mínimo 8 caracteres)
-        <input type="password" minLength={8} {...field("password")} autoComplete="new-password" />
-      </label>
-      {error && <p className="error">{error}</p>}
-      <button type="submit">Crear cuenta</button>
-    </form>
+    <section className="module auth">
+      <div className="module-head">
+        <h1>Crear cuenta</h1>
+      </div>
+      <form onSubmit={submit} className="form module-body">
+        <label>
+          Nombre
+          <input {...field("name")} autoComplete="name" />
+        </label>
+        <label>
+          Email
+          <input type="email" {...field("email")} autoComplete="email" />
+        </label>
+        <label>
+          Dirección de envío
+          <input {...field("address")} autoComplete="street-address" />
+        </label>
+        <label>
+          Contraseña (mínimo 8 caracteres)
+          <input type="password" minLength={8} {...field("password")} autoComplete="new-password" />
+        </label>
+        {error && <p className="error">{error}</p>}
+        <button type="submit">Crear cuenta</button>
+        <p className="muted">
+          ¿Ya tenés cuenta? <Link to="/login">Ingresá</Link>
+        </p>
+      </form>
+    </section>
   )
 }

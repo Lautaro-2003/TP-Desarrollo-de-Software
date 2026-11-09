@@ -1,5 +1,7 @@
 import { FormEvent, useEffect, useState } from "react"
-import { api, ApiError, Category } from "../api"
+import { Link } from "react-router"
+import { api, ApiError, Category, Product, designators, money } from "../api"
+import { Ref } from "./Catalog"
 
 // descripción de un campo del formulario de alta/modificación
 type Field = { key: string; label: string; type: "text" | "number" | "date" | "category" }
@@ -54,8 +56,17 @@ function CrudSection({ singular, path, fields, categories }: (typeof SECTIONS)[n
     load()
   }, [path])
 
-  const show = (f: Field, value: unknown) =>
-    f.type === "category" ? (categories.find((c) => c._id === value)?.name ?? "—") : f.type === "date" ? String(value).slice(0, 10) : String(value ?? "")
+  // mismo formato que la tienda: precios en pesos, fechas dd/mm/aaaa (sin pasar por zona horaria) y estados con mayúscula
+  const show = (f: Field, value: unknown) => {
+    if (f.type === "category") return categories.find((c) => c._id === value)?.name ?? "—"
+    if (f.type === "date") return String(value).slice(0, 10).split("-").reverse().join("/")
+    if (f.key === "price") return money(Number(value))
+    if (f.key === "percentage") return `${value}%`
+    const text = String(value ?? "")
+    return f.key === "status" ? text.charAt(0).toUpperCase() + text.slice(1) : text
+  }
+  const refs = path === "/products" ? designators(rows as unknown as Product[], categories) : null
+  const statuses = [...new Set(rows.map((r) => String(r.status ?? "")).filter(Boolean))]
 
   function edit(row: Row) {
     setEditing(row._id)
@@ -93,36 +104,51 @@ function CrudSection({ singular, path, fields, categories }: (typeof SECTIONS)[n
   }
 
   return (
-    <div>
-      <table>
-        <thead>
-          <tr>
-            {fields.map((f) => (
-              <th key={f.key}>{f.label}</th>
-            ))}
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => (
-            <tr key={row._id}>
+    <div className="admin-grid">
+      <div className="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              {refs && <th>Ref.</th>}
               {fields.map((f) => (
-                <td key={f.key}>{show(f, row[f.key])}</td>
+                <th key={f.key} className={f.type === "number" ? "n" : undefined}>
+                  {f.label}
+                </th>
               ))}
-              <td className="actions">
-                <button className="link" onClick={() => edit(row)}>
-                  Editar
-                </button>
-                <button className="link danger" onClick={() => remove(row._id)}>
-                  Eliminar
-                </button>
-              </td>
+              <th>
+                <span className="sr-only">Acciones</span>
+              </th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row._id}>
+                {refs && (
+                  <td>
+                    <Ref value={refs.get(row._id)} />
+                  </td>
+                )}
+                {fields.map((f) => (
+                  <td key={f.key} className={f.type === "number" ? "n" : undefined}>
+                    {show(f, row[f.key])}
+                  </td>
+                ))}
+                <td className="actions">
+                  <button className="link" onClick={() => edit(row)}>
+                    Editar
+                  </button>
+                  <button className="link danger" onClick={() => remove(row._id)}>
+                    Eliminar
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {rows.length === 0 && <p className="empty">Todavía no hay registros. Creá el primero con el formulario.</p>}
+      </div>
 
-      <form onSubmit={submit} className="form inline">
+      <form onSubmit={submit} className="form">
         <h3>{editing ? `Modificar ${singular}` : `Agregar ${singular}`}</h3>
         {fields.map((f) => (
           <label key={f.key}>
@@ -142,14 +168,23 @@ function CrudSection({ singular, path, fields, categories }: (typeof SECTIONS)[n
                 step={f.type === "number" ? "any" : undefined}
                 value={form[f.key] ?? ""}
                 onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}
+                list={f.key === "status" ? "estados-producto" : undefined}
                 required
               />
             )}
           </label>
         ))}
+        {/* el backend acepta cualquier texto: se sugieren los estados que ya se usan */}
+        {fields.some((f) => f.key === "status") && (
+          <datalist id="estados-producto">
+            {statuses.map((s) => (
+              <option key={s} value={s} />
+            ))}
+          </datalist>
+        )}
         {error && <p className="error">{error}</p>}
-        <div>
-          <button type="submit">{editing ? "Guardar cambios" : "Crear"}</button>{" "}
+        <div className="row">
+          <button type="submit">{editing ? "Guardar cambios" : `Crear ${singular}`}</button>
           {editing && (
             <button type="button" className="secondary" onClick={reset}>
               Cancelar
@@ -171,17 +206,23 @@ export default function Admin() {
   }, [tab])
 
   return (
-    <section>
-      <h1>Administración</h1>
-      <p className="muted">Los pedidos se gestionan desde la sección Pedidos.</p>
-      <div className="chips" role="tablist">
+    <section className="module">
+      <div className="module-head">
+        <h1>Administración</h1>
+        <span className="meta">
+          Los pedidos se gestionan desde <Link to="/pedidos">Pedidos</Link>.
+        </span>
+      </div>
+      <div className="tabs" role="tablist">
         {SECTIONS.map((s, i) => (
-          <button key={s.path} role="tab" aria-selected={tab === i} className={tab === i ? "chip active" : "chip"} onClick={() => setTab(i)}>
+          <button key={s.path} role="tab" aria-selected={tab === i} onClick={() => setTab(i)}>
             {s.title}
           </button>
         ))}
       </div>
-      <CrudSection key={SECTIONS[tab].path} {...SECTIONS[tab]} categories={categories} />
+      <div role="tabpanel" aria-label={SECTIONS[tab].title}>
+        <CrudSection key={SECTIONS[tab].path} {...SECTIONS[tab]} categories={categories} />
+      </div>
     </section>
   )
 }
