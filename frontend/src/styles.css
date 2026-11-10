@@ -1243,6 +1243,14 @@ label.sort {
   max-width: 70ch;
 }
 
+.review-list .review-by {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 10px;
+  font-size: var(--fs-s);
+}
+
 .review-form {
   padding: 14px;
   border-top: 1px solid var(--line);

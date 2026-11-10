@@ -21,7 +21,8 @@ export type Discount = { _id: string; categoryId: string; percentage: number; st
 export type OrderStatus = "pendiente" | "pagado" | "enviado" | "entregado"
 export type OrderItem = { _id: string; orderId: string; productId: string; quantity: number; unitPrice: number; subtotal: number }
 export type Order = { _id: string; userId: string; date: string; status: OrderStatus; total: number; items?: OrderItem[] }
-export type Review = { _id: string; userId: string; productId: string; rating: number; comment: string; date: string }
+// author llega abreviado desde el backend ("María G.")
+export type Review = { _id: string; userId: string; productId: string; rating: number; comment: string; date: string; author: string }
 
 const TOKEN_KEY = "tienda.token"
 

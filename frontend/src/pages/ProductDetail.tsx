@@ -2,7 +2,7 @@ import { FormEvent, useEffect, useState } from "react"
 import { Link, useNavigate, useParams } from "react-router"
 import { api, ApiError, Category, Discount, Order, Product, Review, date, designators, productPath } from "../api"
 import { useSession } from "../session"
-import { CartControl, ProductImage } from "../ui"
+import { CartControl, Icon, ProductImage } from "../ui"
 import { Price, StarRow, Stars, Stock } from "./Catalog"
 
 export default function ProductDetail() {
@@ -156,6 +156,14 @@ export default function ProductDetail() {
           <ul className="review-list">
             {reviews.map((r) => (
               <li key={r._id}>
+                {/* toda reseña es de una compra: la API no deja reseñar sin un pedido pagado */}
+                <p className="review-by">
+                  <b>{r.author}</b>
+                  <span className="in">
+                    <Icon name="check" />
+                    Compra verificada
+                  </span>
+                </p>
                 <div className="stars">
                   <span className="sr-only">{r.rating} de 5</span>
                   <StarRow value={r.rating} />
