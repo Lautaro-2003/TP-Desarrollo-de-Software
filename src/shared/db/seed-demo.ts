@@ -18,8 +18,12 @@ const TECLADO = new ObjectId("674a1b2c3d4e5f678901234c")
 
 const ALMACENAMIENTO = id(1)
 const MONITORES = id(2)
+const PROCESADORES = id(3)
+const MEMORIAS = id(4)
 await upsert("categories", ALMACENAMIENTO, { name: "Almacenamiento", description: "Discos SSD y HDD" })
 await upsert("categories", MONITORES, { name: "Monitores", description: "Pantallas para gaming y oficina" })
+await upsert("categories", PROCESADORES, { name: "Procesadores", description: "CPUs AMD Ryzen e Intel Core" })
+await upsert("categories", MEMORIAS, { name: "Memorias RAM", description: "Módulos DDR4 y DDR5 para PC de escritorio" })
 
 const RX = id(101)
 const MOUSE = id(102)

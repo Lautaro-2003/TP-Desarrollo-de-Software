@@ -62,7 +62,14 @@ export function discountFor(discounts: Discount[], categoryId: string, now = new
 export const withDiscount = (price: number, percentage: number) => Math.round(price * (100 - percentage)) / 100
 
 // prefijo serigrafiado de cada categoría; las que se creen después usan sus tres primeras letras
-const PREFIX: Record<string, string> = { "Placas de Video": "VGA", Periféricos: "PER", Almacenamiento: "ALM", Monitores: "MON" }
+const PREFIX: Record<string, string> = {
+  "Placas de Video": "VGA",
+  Periféricos: "PER",
+  Almacenamiento: "ALM",
+  Monitores: "MON",
+  Procesadores: "CPU",
+  "Memorias RAM": "RAM",
+}
 export const prefixFor = (name = "") =>
   PREFIX[name] ?? (name.normalize("NFD").replace(/[^A-Za-z]/g, "").slice(0, 3).toUpperCase() || "REF")
 
