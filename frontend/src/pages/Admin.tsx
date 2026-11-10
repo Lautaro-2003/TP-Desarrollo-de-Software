@@ -4,6 +4,10 @@ import { api, ApiError, Category, Product, designators, money } from "../api"
 import { Thumb } from "../ui"
 import { Ref } from "./Catalog"
 
+// estados que el sistema asigna solo según el stock (el backend fuerza "sin stock" con stock 0)
+const OUT_OF_STOCK = "sin stock"
+const AVAILABLE = "disponible"
+
 // descripción de un campo del formulario de alta/modificación
 // "image" es la URL de la foto: opcional, y en la tabla se ve como miniatura junto al designador
 type Field = { key: string; label: string; type: "text" | "number" | "date" | "category" | "image" }
@@ -85,6 +89,18 @@ function CrudSection({ singular, path, fields, categories }: (typeof SECTIONS)[n
     setForm(Object.fromEntries(fields.map((f) => [f.key, f.type === "date" ? String(row[f.key]).slice(0, 10) : String(row[f.key] ?? "")])))
   }
 
+  // al cambiar el stock, el estado acompaña: en cero pasa a "sin stock" y al reponer vuelve a "disponible"
+  function change(key: string, value: string) {
+    const next = { ...form, [key]: value }
+    if (key === "stock" && "status" in form) {
+      const empty = value !== "" && Number(value) === 0
+      if (empty) next.status = OUT_OF_STOCK
+      else if (value !== "" && form.status === OUT_OF_STOCK) next.status = AVAILABLE
+    }
+    setForm(next)
+  }
+  const stockEmpty = form.stock !== undefined && form.stock !== "" && Number(form.stock) === 0
+
   function reset() {
     setEditing(null)
     setForm({})
@@ -136,7 +152,7 @@ function CrudSection({ singular, path, fields, categories }: (typeof SECTIONS)[n
           </thead>
           <tbody>
             {rows.map((row) => (
-              <tr key={row._id}>
+              <tr key={row._id} className={refs && Number(row.stock) === 0 ? "sin-stock" : undefined}>
                 {refs && (
                   <td className="with-thumb">
                     <Thumb product={row as unknown as Product} />
@@ -144,7 +160,7 @@ function CrudSection({ singular, path, fields, categories }: (typeof SECTIONS)[n
                   </td>
                 )}
                 {columns.map((f) => (
-                  <td key={f.key} className={f.type === "number" ? "n" : undefined}>
+                  <td key={f.key} className={[f.type === "number" && "n", `col-${f.key}`].filter(Boolean).join(" ")}>
                     {show(f, row[f.key])}
                   </td>
                 ))}
@@ -174,7 +190,7 @@ function CrudSection({ singular, path, fields, categories }: (typeof SECTIONS)[n
           <label key={f.key}>
             {f.label}
             {f.type === "category" ? (
-              <select value={form[f.key] ?? ""} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} required>
+              <select value={form[f.key] ?? ""} onChange={(e) => change(f.key, e.target.value)} required>
                 <option value="">Elegí una categoría</option>
                 {categories.map((c) => (
                   <option key={c._id} value={c._id}>
@@ -187,8 +203,10 @@ function CrudSection({ singular, path, fields, categories }: (typeof SECTIONS)[n
                 type={f.type === "image" ? "url" : f.type}
                 step={f.type === "number" ? "any" : undefined}
                 value={form[f.key] ?? ""}
-                onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}
+                onChange={(e) => change(f.key, e.target.value)}
                 list={f.key === "status" ? "estados-producto" : undefined}
+                readOnly={f.key === "status" && stockEmpty}
+                title={f.key === "status" && stockEmpty ? "Con stock 0 el estado es siempre «Sin stock»" : undefined}
                 placeholder={f.type === "image" ? "https://…" : undefined}
                 required={f.type !== "image"}
               />
