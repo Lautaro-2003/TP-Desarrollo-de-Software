@@ -6,7 +6,7 @@ import { Price, StarRow, Stars, Stock } from "./Catalog"
 
 export default function ProductDetail() {
   const { id } = useParams()
-  const { user, addToCart } = useSession()
+  const { user, cart, addToCart } = useSession()
   const [product, setProduct] = useState<Product | null>(null)
   const [missing, setMissing] = useState(false)
   const [siblings, setSiblings] = useState<Product[]>([])
@@ -66,6 +66,7 @@ export default function ProductDetail() {
   const category = categories.find((c) => c._id === product.categoryId)
   const ref = designators(siblings, categories).get(product._id)
   const alreadyReviewed = reviews.some((r) => r.userId === user?._id)
+  const inCart = cart.find((i) => i.productId === product._id)?.quantity ?? 0
 
   return (
     <>
@@ -112,13 +113,13 @@ export default function ProductDetail() {
             ) : (
               <>
                 <button
-                  disabled={product.stock === 0}
+                  disabled={inCart >= product.stock}
                   onClick={() => {
-                    addToCart(product._id)
+                    addToCart(product._id, product.stock)
                     setAdded(true)
                   }}
                 >
-                  {product.stock === 0 ? "Sin stock" : "Agregar al carrito"}
+                  {product.stock === 0 ? "Sin stock" : inCart >= product.stock ? "Ya tenés todo el stock en el carrito" : "Agregar al carrito"}
                 </button>
                 {added && (
                   <p className="small" role="status">
