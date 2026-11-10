@@ -6,7 +6,7 @@ import { Icon } from "./ui"
 import Catalog from "./pages/Catalog"
 import ProductDetail from "./pages/ProductDetail"
 import Cart from "./pages/Cart"
-import { Login, Register } from "./pages/Auth"
+import { ConfirmEmail, Login, Register } from "./pages/Auth"
 import { MyOrders, OrderDetail } from "./pages/Orders"
 import Account from "./pages/Account"
 import Admin from "./pages/Admin"
@@ -230,6 +230,7 @@ export default function App() {
           <Route path="/carrito" element={<Cart />} />
           <Route path="/login" element={<Login />} />
           <Route path="/registro" element={<Register />} />
+          <Route path="/confirmar/:token" element={<ConfirmEmail />} />
           <Route path="/cuenta" element={<Private><Account /></Private>} />
           {/* los pedidos del cliente viven en su cuenta; /pedidos queda para el listado completo del admin */}
           <Route

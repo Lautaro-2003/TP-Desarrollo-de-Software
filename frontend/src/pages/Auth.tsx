@@ -1,5 +1,5 @@
-import { FormEvent, useState } from "react"
-import { Link, Navigate, useLocation } from "react-router"
+import { FormEvent, useEffect, useRef, useState } from "react"
+import { Link, Navigate, useLocation, useParams } from "react-router"
 import { api, ApiError } from "../api"
 import { useSession } from "../session"
 
@@ -56,10 +56,11 @@ export function Login() {
 }
 
 export function Register() {
-  const { user, login } = useSession()
+  const { user } = useSession()
   const from = useReturnTo()
   const [form, setForm] = useState({ name: "", email: "", address: "", password: "" })
   const [error, setError] = useState("")
+  const [sent, setSent] = useState(false)
   const field = (key: keyof typeof form) => ({
     value: form[key],
     onChange: (e: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, [key]: e.target.value }),
@@ -70,14 +71,35 @@ export function Register() {
     e.preventDefault()
     setError("")
     try {
+      // ya no entra solo: primero tiene que confirmar el email con el link del mail
       await api("POST", "/auth/register", form)
-      await login(form.email, form.password)
+      setSent(true)
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "No se pudo crear la cuenta")
     }
   }
 
   if (user) return <Navigate to={from} replace />
+
+  if (sent)
+    return (
+      <section className="module auth">
+        <div className="module-head">
+          <h1>Revisá tu email</h1>
+        </div>
+        <div className="form module-body">
+          <p className="notice" role="status">
+            Te mandamos un mail a <strong>{form.email}</strong> para confirmar la cuenta. Abrí el link y después ingresá.
+          </p>
+          <p className="muted">
+            ¿No te llegó? Al intentar ingresar te lo reenviamos.{" "}
+            <Link to="/login" state={{ from }}>
+              Ir a Ingresar
+            </Link>
+          </p>
+        </div>
+      </section>
+    )
 
   return (
     <section className="module auth">
@@ -110,6 +132,40 @@ export function Register() {
           </Link>
         </p>
       </form>
+    </section>
+  )
+}
+
+// destino del link del mail de confirmación: /confirmar/:token
+export function ConfirmEmail() {
+  const { token } = useParams()
+  const [state, setState] = useState<{ ok: boolean; message: string } | null>(null)
+  const sent = useRef("")
+
+  useEffect(() => {
+    // el token sirve una sola vez: StrictMode corre el efecto dos veces y el segundo pedido daría 404
+    if (sent.current === token) return
+    sent.current = token!
+    api("GET", `/auth/confirm/${token}`).then(
+      () => setState({ ok: true, message: "Tu email quedó confirmado: ya podés ingresar." }),
+      (err) => setState({ ok: false, message: err instanceof ApiError ? err.message : "No se pudo confirmar el email" })
+    )
+  }, [token])
+
+  return (
+    <section className="module auth">
+      <div className="module-head">
+        <h1>Confirmar email</h1>
+      </div>
+      <div className="form module-body">
+        {!state && <p className="muted">Confirmando…</p>}
+        {state && (
+          <p className={state.ok ? "notice" : "error"} role="status">
+            {state.message}
+          </p>
+        )}
+        {state && <Link to="/login">Ir a Ingresar</Link>}
+      </div>
     </section>
   )
 }
