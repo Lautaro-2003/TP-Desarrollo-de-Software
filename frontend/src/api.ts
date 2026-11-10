@@ -10,8 +10,13 @@ export type Product = {
   stock: number
   status: string
   categoryId: string
+  slug?: string
+  image?: string
   rating?: { average: number; count: number }
 }
+
+// la URL del producto usa su slug (/productos/rtx-4070); los productos viejos sin slug caen al id
+export const productPath = (p: Product) => `/productos/${p.slug || p._id}`
 export type Discount = { _id: string; categoryId: string; percentage: number; startDate: string; endDate: string }
 export type OrderStatus = "pendiente" | "pagado" | "enviado" | "entregado"
 export type OrderItem = { _id: string; orderId: string; productId: string; quantity: number; unitPrice: number; subtotal: number }

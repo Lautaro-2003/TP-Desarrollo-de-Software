@@ -1,6 +1,8 @@
-import { Link, NavLink, Navigate, Route, Routes, useLocation, useNavigate } from "react-router"
-import { ReactNode, useEffect, useRef, useState } from "react"
+import { Link, NavLink, Navigate, Route, Routes, useLocation, useNavigate, useSearchParams } from "react-router"
+import { FormEvent, ReactNode, useEffect, useRef, useState } from "react"
 import { useSession } from "./session"
+import { api, Category, Discount, discountFor, prefixFor } from "./api"
+import { Icon } from "./ui"
 import Catalog from "./pages/Catalog"
 import ProductDetail from "./pages/ProductDetail"
 import Cart from "./pages/Cart"
@@ -106,6 +108,77 @@ function UserMenu() {
   )
 }
 
+// el buscador vive en el header: en el catálogo filtra mientras se escribe; desde otra página lleva al catálogo
+function SearchBox() {
+  const navigate = useNavigate()
+  const { pathname } = useLocation()
+  const [params, setParams] = useSearchParams()
+  const onCatalog = pathname === "/"
+  const [text, setText] = useState(onCatalog ? (params.get("q") ?? "") : "")
+
+  // si la búsqueda cambia desde afuera (ej. "Ver todo el catálogo"), el campo la acompaña
+  useEffect(() => {
+    if (onCatalog) setText(params.get("q") ?? "")
+  }, [onCatalog, params.get("q")])
+
+  function change(value: string) {
+    setText(value)
+    if (!onCatalog) return
+    const next = new URLSearchParams(params)
+    if (value.trim()) next.set("q", value)
+    else next.delete("q")
+    setParams(next, { replace: true })
+  }
+
+  function submit(e: FormEvent) {
+    e.preventDefault()
+    if (!onCatalog) navigate(text.trim() ? `/?q=${encodeURIComponent(text.trim())}` : "/")
+  }
+
+  return (
+    <form className="search" role="search" onSubmit={submit}>
+      <label className="sr-only" htmlFor="buscar">
+        Buscar productos
+      </label>
+      <input id="buscar" type="search" value={text} onChange={(e) => change(e.target.value)} placeholder="Buscá placas, monitores, periféricos…" />
+      <button type="submit" aria-label="Buscar">
+        <Icon name="search" />
+      </button>
+    </form>
+  )
+}
+
+// barra de categorías: cada una con su prefijo de designador y, si tiene descuento vigente, el porcentaje
+function CategoryBar() {
+  const { pathname } = useLocation()
+  const [params] = useSearchParams()
+  const [categories, setCategories] = useState<Category[]>([])
+  const [discounts, setDiscounts] = useState<Discount[]>([])
+  useEffect(() => {
+    api<Category[]>("GET", "/categories").then(setCategories)
+    api<Discount[]>("GET", "/discounts").then(setDiscounts)
+  }, [])
+
+  const active = pathname === "/" ? (params.get("categoria") ?? "") : null
+  return (
+    <nav className="catbar" aria-label="Categorías">
+      <Link to="/" aria-current={active === "" ? "page" : undefined}>
+        Todo
+      </Link>
+      {categories.map((c) => {
+        const pct = discountFor(discounts, c._id)
+        return (
+          <Link key={c._id} to={`/?categoria=${c._id}`} aria-current={active === c._id ? "page" : undefined}>
+            <span className="prefix">{prefixFor(c.name)}</span>
+            {c.name}
+            {pct > 0 && <span className="off">-{pct}%</span>}
+          </Link>
+        )
+      })}
+    </nav>
+  )
+}
+
 export default function App() {
   const { user, cart } = useSession()
   const items = cart.reduce((sum, i) => sum + i.quantity, 0)
@@ -114,10 +187,14 @@ export default function App() {
     <>
       <header>
         <div className="bar1">
-          <Link to="/" className="brand">
+          <Link to="/" className="brand" aria-label="Tienda de Informática, ir al catálogo">
             <ChipMark />
-            Tienda de Informática
+            <span className="wordmark" aria-hidden="true">
+              <small>Tienda de</small>
+              <b>Informática</b>
+            </span>
           </Link>
+          <SearchBox />
           <div className="account">
             {user ? (
               <UserMenu />
@@ -128,17 +205,19 @@ export default function App() {
               </>
             )}
             {user?.role !== "admin" && (
-              <NavLink to="/carrito" className="cart-chip">
+              <NavLink to="/carrito" className="cart-chip" aria-label={`Carrito, ${items} ${items === 1 ? "producto" : "productos"}`}>
+                <Icon name="cart" />
                 Carrito <span className="pad-count">{items}</span>
               </NavLink>
             )}
           </div>
         </div>
+        <CategoryBar />
       </header>
       <main>
         <Routes>
           <Route path="/" element={<Catalog />} />
-          <Route path="/productos/:id" element={<ProductDetail />} />
+          <Route path="/productos/:slug" element={<ProductDetail />} />
           <Route path="/carrito" element={<Cart />} />
           <Route path="/login" element={<Login />} />
           <Route path="/registro" element={<Register />} />

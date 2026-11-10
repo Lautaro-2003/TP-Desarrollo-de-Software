@@ -1,33 +1,9 @@
 import { useEffect, useState } from "react"
 import { Link, useNavigate } from "react-router"
-import { api, ApiError, Category, Discount, Order, Product, designators, discountFor, money, withDiscount } from "../api"
+import { api, ApiError, Category, Discount, Order, Product, designators, discountFor, money, productPath, withDiscount } from "../api"
 import { useSession } from "../session"
+import { Stepper, Thumb, confirmRemove } from "../ui"
 import { Ref } from "./Catalog"
-
-// el campo se puede vaciar para tipear otro número sin que el producto salga del carrito:
-// solo se guardan enteros de 1 al stock, y al salir del campo vuelve a la cantidad guardada
-function QtyInput({ value, max, label, onChange }: { value: number; max: number; label: string; onChange: (q: number) => void }) {
-  const [draft, setDraft] = useState(String(value))
-  useEffect(() => setDraft(String(value)), [value])
-
-  return (
-    <input
-      type="number"
-      min={1}
-      max={max}
-      value={draft}
-      aria-label={label}
-      onChange={(e) => {
-        const n = Math.floor(Number(e.target.value))
-        if (e.target.value === "" || !(n >= 1)) return setDraft(e.target.value)
-        const q = Math.min(n, max)
-        setDraft(String(q))
-        onChange(q)
-      }}
-      onBlur={() => setDraft(String(value))}
-    />
-  )
-}
 
 type StockProblem = { name: string; stock: number }
 
@@ -110,7 +86,7 @@ export default function Cart() {
           <table>
             <thead>
               <tr>
-                <th>Ref.</th>
+                <th className="fit">Ref.</th>
                 <th>Producto</th>
                 <th className="n">Precio unitario</th>
                 <th>Cantidad</th>
@@ -123,11 +99,12 @@ export default function Cart() {
             <tbody>
               {lines.map((l) => (
                 <tr key={l.productId}>
-                  <td>
+                  <td className="fit">
                     <Ref value={refs.get(l.productId)} />
                   </td>
-                  <td>
-                    <Link className="name" to={`/productos/${l.productId}`}>
+                  <td className="with-thumb">
+                    <Thumb product={l.product} />
+                    <Link className="name" to={productPath(l.product)}>
                       {l.product.name}
                     </Link>
                     {l.quantity > l.product.stock && (
@@ -136,16 +113,12 @@ export default function Cart() {
                   </td>
                   <td className="n">{money(l.unit)}</td>
                   <td>
-                    <QtyInput
-                      value={l.quantity}
-                      max={Math.max(l.product.stock, 1)}
-                      label={`Cantidad de ${l.product.name}`}
-                      onChange={(q) => setQuantity(l.productId, q)}
-                    />
+                    {/* el mismo − cantidad + que en el catálogo: se frena en el stock y el − en 1 quita con confirmación */}
+                    <Stepper value={l.quantity} max={l.product.stock} name={l.product.name} onChange={(q) => setQuantity(l.productId, q)} />
                   </td>
                   <td className="n price">{money(l.subtotal)}</td>
                   <td>
-                    <button className="link danger" onClick={() => setQuantity(l.productId, 0)}>
+                    <button className="link danger" onClick={() => confirmRemove(l.product.name) && setQuantity(l.productId, 0)}>
                       Quitar
                     </button>
                   </td>

@@ -1,10 +1,12 @@
 import { FormEvent, useEffect, useState } from "react"
 import { Link } from "react-router"
 import { api, ApiError, Category, Product, designators, money } from "../api"
+import { Thumb } from "../ui"
 import { Ref } from "./Catalog"
 
 // descripción de un campo del formulario de alta/modificación
-type Field = { key: string; label: string; type: "text" | "number" | "date" | "category" }
+// "image" es la URL de la foto: opcional, y en la tabla se ve como miniatura junto al designador
+type Field = { key: string; label: string; type: "text" | "number" | "date" | "category" | "image" }
 
 const SECTIONS: { title: string; singular: string; path: string; fields: Field[] }[] = [
   {
@@ -18,6 +20,7 @@ const SECTIONS: { title: string; singular: string; path: string; fields: Field[]
       { key: "stock", label: "Stock", type: "number" },
       { key: "status", label: "Estado", type: "text" },
       { key: "categoryId", label: "Categoría", type: "category" },
+      { key: "image", label: "Foto (URL, opcional)", type: "image" },
     ],
   },
   {
@@ -66,6 +69,7 @@ function CrudSection({ singular, path, fields, categories }: (typeof SECTIONS)[n
     return f.key === "status" ? text.charAt(0).toUpperCase() + text.slice(1) : text
   }
   const refs = path === "/products" ? designators(rows as unknown as Product[], categories) : null
+  const columns = fields.filter((f) => f.type !== "image")
   const statuses = [...new Set(rows.map((r) => String(r.status ?? "")).filter(Boolean))]
 
   function edit(row: Row) {
@@ -111,7 +115,7 @@ function CrudSection({ singular, path, fields, categories }: (typeof SECTIONS)[n
           <thead>
             <tr>
               {refs && <th>Ref.</th>}
-              {fields.map((f) => (
+              {columns.map((f) => (
                 <th key={f.key} className={f.type === "number" ? "n" : undefined}>
                   {f.label}
                 </th>
@@ -125,11 +129,12 @@ function CrudSection({ singular, path, fields, categories }: (typeof SECTIONS)[n
             {rows.map((row) => (
               <tr key={row._id}>
                 {refs && (
-                  <td>
+                  <td className="with-thumb">
+                    <Thumb product={row as unknown as Product} />
                     <Ref value={refs.get(row._id)} />
                   </td>
                 )}
-                {fields.map((f) => (
+                {columns.map((f) => (
                   <td key={f.key} className={f.type === "number" ? "n" : undefined}>
                     {show(f, row[f.key])}
                   </td>
@@ -165,12 +170,13 @@ function CrudSection({ singular, path, fields, categories }: (typeof SECTIONS)[n
               </select>
             ) : (
               <input
-                type={f.type}
+                type={f.type === "image" ? "url" : f.type}
                 step={f.type === "number" ? "any" : undefined}
                 value={form[f.key] ?? ""}
                 onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}
                 list={f.key === "status" ? "estados-producto" : undefined}
-                required
+                placeholder={f.type === "image" ? "https://…" : undefined}
+                required={f.type !== "image"}
               />
             )}
           </label>

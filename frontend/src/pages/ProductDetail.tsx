@@ -1,12 +1,15 @@
 import { FormEvent, useEffect, useState } from "react"
-import { Link, useParams } from "react-router"
-import { api, ApiError, Category, Discount, Order, Product, Review, date, designators } from "../api"
+import { Link, useNavigate, useParams } from "react-router"
+import { api, ApiError, Category, Discount, Order, Product, Review, date, designators, productPath } from "../api"
 import { useSession } from "../session"
+import { CartControl, ProductImage } from "../ui"
 import { Price, StarRow, Stars, Stock } from "./Catalog"
 
 export default function ProductDetail() {
-  const { id } = useParams()
-  const { user, cart, addToCart } = useSession()
+  // la URL trae el slug (o el id en enlaces viejos: el backend acepta los dos)
+  const { slug } = useParams()
+  const navigate = useNavigate()
+  const { user, cart } = useSession()
   const [product, setProduct] = useState<Product | null>(null)
   const [missing, setMissing] = useState(false)
   const [siblings, setSiblings] = useState<Product[]>([])
@@ -16,16 +19,22 @@ export default function ProductDetail() {
   const [rating, setRating] = useState(5)
   const [comment, setComment] = useState("")
   const [error, setError] = useState("")
-  const [added, setAdded] = useState(false)
+  const [bought, setBought] = useState(false)
 
   // recarga producto (para el promedio) y reseñas después de cada cambio
-  const load = () => {
-    api<Product>("GET", `/products/${id}`)
-      .then(setProduct)
+  const load = () =>
+    api<Product>("GET", `/products/${slug}`)
+      .then((p) => {
+        setProduct(p)
+        // un enlace viejo con el id pasa a la URL legible sin dejar el id en el historial
+        if (p.slug && p.slug !== slug) navigate(productPath(p), { replace: true })
+        return api<Review[]>("GET", `/reviews?productId=${p._id}`).then(setReviews)
+      })
       .catch(() => setMissing(true))
-    api<Review[]>("GET", `/reviews?productId=${id}`).then(setReviews)
-  }
-  useEffect(load, [id])
+  useEffect(() => {
+    setMissing(false)
+    load()
+  }, [slug])
   useEffect(() => {
     api<Discount[]>("GET", "/discounts").then(setDiscounts)
     api<Category[]>("GET", "/categories").then(setCategories)
@@ -35,20 +44,19 @@ export default function ProductDetail() {
     if (product) api<Product[]>("GET", `/products?categoryId=${product.categoryId}`).then(setSiblings)
   }, [product?.categoryId])
   // mismo criterio que el backend: reseña quien tiene un pedido ya pagado con este producto
-  const [bought, setBought] = useState(false)
   useEffect(() => {
     setBought(false)
-    if (user?.role !== "cliente") return
+    if (user?.role !== "cliente" || !product) return
     api<Order[]>("GET", "/orders")
       .then((orders) => Promise.all(orders.filter((o) => o.status !== "pendiente").map((o) => api<Order>("GET", `/orders/${o._id}`))))
-      .then((details) => setBought(details.some((o) => o.items?.some((i) => i.productId === id))))
-  }, [user, id])
+      .then((details) => setBought(details.some((o) => o.items?.some((i) => i.productId === product._id))))
+  }, [user, product?._id])
 
   async function submit(e: FormEvent) {
     e.preventDefault()
     setError("")
     try {
-      await api("POST", "/reviews", { productId: id, rating, comment })
+      await api("POST", "/reviews", { productId: product!._id, rating, comment })
       setComment("")
       load()
     } catch (err) {
@@ -81,7 +89,8 @@ export default function ProductDetail() {
   const category = categories.find((c) => c._id === product.categoryId)
   const ref = designators(siblings, categories).get(product._id)
   const alreadyReviewed = reviews.some((r) => r.userId === user?._id)
-  const inCart = cart.find((i) => i.productId === product._id)?.quantity ?? 0
+  const inCart = cart.some((i) => i.productId === product._id)
+  const formShown = user?.role === "cliente" && bought && !alreadyReviewed
 
   return (
     <>
@@ -99,52 +108,44 @@ export default function ProductDetail() {
         </ol>
       </nav>
 
-      <div className="detail">
-        <section className="module identity">
-          <div className="footprint">
-            <div className="courtyard">
-              <span className="sr-only">Designador</span>
-              <b>{ref ?? "…"}</b>
-            </div>
-          </div>
-          <div className="module-body">
-            <h1 className="page-title">{product.name}</h1>
-            <p className="lead">{product.description}</p>
-            <Stars rating={product.rating} />
-          </div>
-        </section>
+      <div className="pdp">
+        <figure className="module pdp-media">
+          <ProductImage product={product} refLabel={ref} alt={product.name} />
+          {product.image && <figcaption className="muted small">Foto ilustrativa</figcaption>}
+        </figure>
 
-        <aside className="module buy">
-          <div className="module-head">
-            <h2>Comprar</h2>
-          </div>
+        <section className="module pdp-buy" aria-labelledby="producto-nombre">
           <div className="module-body">
-            <Price product={product} discounts={discounts} />
-            <p className="small">
-              <Stock stock={product.stock} />
-            </p>
+            <h1 id="producto-nombre" className="page-title">
+              {product.name}
+            </h1>
+            <Stars rating={product.rating} />
+            <p className="lead">{product.description}</p>
+            <div className="price-box">
+              <Price product={product} discounts={discounts} />
+              <p className="small">
+                <Stock stock={product.stock} />
+                {product.stock > 5 && <span className="muted"> · {product.stock} unidades</span>}
+              </p>
+            </div>
             {user?.role === "admin" ? (
               <p className="muted small">Los administradores no compran desde la tienda.</p>
             ) : (
               <>
-                <button
-                  disabled={inCart >= product.stock}
-                  onClick={() => {
-                    addToCart(product._id, product.stock)
-                    setAdded(true)
-                  }}
-                >
-                  {product.stock === 0 ? "Sin stock" : inCart >= product.stock ? "Ya tenés todo el stock en el carrito" : "Agregar al carrito"}
-                </button>
-                {added && (
-                  <p className="small" role="status">
-                    Agregado. <Link to="/carrito">Ver carrito</Link>
-                  </p>
+                <CartControl product={product} label="Agregar al carrito" />
+                {inCart && (
+                  <Link className="button secondary" to="/carrito">
+                    Ver carrito
+                  </Link>
                 )}
               </>
             )}
+            <ul className="facts small">
+              <li>El stock se reserva al pagar el pedido.</li>
+              <li>Las reseñas son solo de quienes lo compraron.</li>
+            </ul>
           </div>
-        </aside>
+        </section>
 
         <section className="module reviews-module">
           <div className="module-head">
@@ -171,9 +172,9 @@ export default function ProductDetail() {
           </ul>
 
           {/* el error del formulario queda adentro; acá se muestra el de borrar una reseña */}
-          {error && !(user?.role === "cliente" && bought && !alreadyReviewed) && <p className="error">{error}</p>}
+          {error && !formShown && <p className="error">{error}</p>}
           {user?.role === "cliente" && !bought && <p className="empty">Vas a poder reseñar este producto cuando lo compres y pagues.</p>}
-          {user?.role === "cliente" && bought && !alreadyReviewed && (
+          {formShown && (
             <form onSubmit={submit} className="form review-form">
               <h3>Dejá tu reseña</h3>
               <label>
@@ -198,7 +199,7 @@ export default function ProductDetail() {
           )}
           {!user && (
             <p className="empty">
-              <Link to="/login" state={{ from: `/productos/${id}` }}>
+              <Link to="/login" state={{ from: productPath(product) }}>
                 Ingresá
               </Link>{" "}
               para dejar una reseña de un producto que compraste.

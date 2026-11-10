@@ -1,13 +1,27 @@
 import { useEffect, useState } from "react"
 import { Link, useLocation, useNavigate, useParams } from "react-router"
-import { api, ApiError, Category, Order, OrderStatus, Product, User, date, designators, money } from "../api"
+import { api, ApiError, Category, Order, OrderStatus, Product, User, date, designators, money, productPath } from "../api"
 import { useSession } from "../session"
+import { Thumb } from "../ui"
 import { Ref } from "./Catalog"
 
 const STEPS: OrderStatus[] = ["pendiente", "pagado", "enviado", "entregado"]
 const LABEL: Record<OrderStatus, string> = { pendiente: "Pendiente", pagado: "Pagado", enviado: "Enviado", entregado: "Entregado" }
 const NEXT: Partial<Record<OrderStatus, OrderStatus>> = { pendiente: "pagado", pagado: "enviado", enviado: "entregado" }
 const ACTION: Record<OrderStatus, string> = { pendiente: "", pagado: "Pagar", enviado: "Marcar enviado", entregado: "Marcar entregado" }
+
+// renglón del pedido: miniatura y nombre con enlace (un producto ya borrado queda solo con "…")
+function ItemName({ product }: { product?: Product }) {
+  if (!product) return <>…</>
+  return (
+    <>
+      <Thumb product={product} />
+      <Link className="name" to={productPath(product)}>
+        {product.name}
+      </Link>
+    </>
+  )
+}
 
 export function StatusBadge({ status }: { status: OrderStatus }) {
   return <span className={`status ${status}`}>{LABEL[status]}</span>
@@ -160,7 +174,7 @@ export function OrderDetail() {
             <table>
               <thead>
                 <tr>
-                  <th>Ref.</th>
+                  <th className="fit">Ref.</th>
                   <th>Producto</th>
                   <th className="n">Precio unitario</th>
                   <th className="n">Cantidad</th>
@@ -170,10 +184,12 @@ export function OrderDetail() {
               <tbody>
                 {order.items?.map((i) => (
                   <tr key={i._id}>
-                    <td>
+                    <td className="fit">
                       <Ref value={refs.get(i.productId)} />
                     </td>
-                    <td>{products.find((p) => p._id === i.productId)?.name ?? "…"}</td>
+                    <td className="with-thumb">
+                      <ItemName product={products.find((p) => p._id === i.productId)} />
+                    </td>
                     <td className="n">{money(i.unitPrice)}</td>
                     <td className="n">{i.quantity}</td>
                     <td className="n">{money(i.subtotal)}</td>
