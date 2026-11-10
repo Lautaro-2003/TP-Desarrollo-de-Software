@@ -625,6 +625,30 @@ tbody tr:hover td {
   background: #f7faf8;
 }
 
+/* producto sin stock en la administración: fila en tinte rojo con filete a la izquierda y el stock resaltado */
+tbody tr.sin-stock td {
+  background: var(--danger-tint);
+}
+
+tbody tr.sin-stock td:first-child {
+  box-shadow: inset 3px 0 0 var(--danger);
+}
+
+tbody tr.sin-stock:hover td {
+  background: #f8dcd8;
+}
+
+tbody tr.sin-stock td.col-stock,
+tbody tr.sin-stock td.col-status {
+  color: var(--danger);
+  font-weight: 700;
+}
+
+input[readonly] {
+  background: var(--ground);
+  color: var(--muted);
+}
+
 th.n,
 td.n {
   text-align: right;

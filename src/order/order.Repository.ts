@@ -1,7 +1,7 @@
 import { Repository } from '../shared/repository.js'
 import { Order, OrderStatus } from './order.entity.js'
 import { OrderItem } from '../orderItem/orderItem.entity.js'
-import { Product } from '../product/product.entity.js'
+import { Product, OUT_OF_STOCK } from '../product/product.entity.js'
 import { cli, db } from '../shared/db/conn.js'
 import { roundCents } from '../shared/money.js'
 import { ObjectId } from 'mongodb'
@@ -76,6 +76,8 @@ export class OrderRepository implements Repository<Order> {
             { session }
           )
           if (modifiedCount === 0) throw new InsufficientStockError(item.productId)
+          // si la venta lo dejó en cero, el producto pasa a "sin stock"
+          await products.updateOne({ _id: item.productId, stock: 0 }, { $set: { status: OUT_OF_STOCK } }, { session })
         }
         return order
       })

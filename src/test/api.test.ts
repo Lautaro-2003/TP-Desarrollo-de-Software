@@ -154,6 +154,17 @@ describe("productos", () => {
     assert.equal(renamed.body.data.image, "")
     assert.equal((await api("DELETE", `/products/${created.body.data._id}`)).status, 200)
   })
+  test("con stock 0 el estado pasa solo a «sin stock»", async () => {
+    const base = { name: "Pad Mouse", description: "Pad", price: 10, stock: 0, status: "disponible", categoryId: PERIFERICOS }
+    const created = await api("POST", "/products", base)
+    assert.equal(created.body.data.status, "sin stock")
+    const id = created.body.data._id
+    // al reponer se respeta el estado enviado; al volver a cero se fuerza, aunque solo cambie el estado
+    assert.equal((await api("PATCH", `/products/${id}`, { stock: 4, status: "disponible" })).body.data.status, "disponible")
+    assert.equal((await api("PATCH", `/products/${id}`, { stock: 0 })).body.data.status, "sin stock")
+    assert.equal((await api("PATCH", `/products/${id}`, { status: "disponible" })).body.data.status, "sin stock")
+    assert.equal((await api("DELETE", `/products/${id}`)).status, 200)
+  })
   test("filtro por categoría", async () => {
     const res = await api("GET", `/products?categoryId=${PLACAS}`)
     assert.deepEqual(res.body.data.map((p: any) => p._id), [RTX])
@@ -360,6 +371,8 @@ describe("estados del pedido (Epic 2)", () => {
     assert.equal(await stock(TECLADO), teclado)
     assert.equal((await api("GET", `/orders/${b}`)).body.data.status, "pendiente")
     assert.equal(await stock(RTX), 0)
+    // la venta que agotó la RTX la dejó "sin stock"
+    assert.equal((await api("GET", `/products/${RTX}`)).body.data.status, "sin stock")
     await api("DELETE", `/orders/${b}`)
   })
 

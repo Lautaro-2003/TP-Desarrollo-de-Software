@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express"
 import { ProductRepository } from "./product.Repository.js"
-import { Product } from "./product.entity.js"
+import { Product, OUT_OF_STOCK } from "./product.entity.js"
 import { db } from "../shared/db/conn.js"
 import { parseObjectId } from "../shared/objectId.js"
 import { ObjectId } from "mongodb"
@@ -174,7 +174,7 @@ async function add(req: Request, res: Response) {
     (input.description as string).trim(),
     input.price as number,
     input.stock as number,
-    (input.status as string).trim(),
+    input.stock === 0 ? OUT_OF_STOCK : (input.status as string).trim(),
     categoryId,
     slug
   )
@@ -207,6 +207,10 @@ async function update(req: Request, res: Response) {
   }
 
   const fields = buildUpdateFields(input)
+  // sin stock, el estado pasa solo a "sin stock" (aunque el cambio sea solo del estado)
+  if ((fields.stock ?? existing.stock) === 0) {
+    fields.status = OUT_OF_STOCK
+  }
 
   if (fields.slug !== undefined && (await slugTaken(fields.slug, id))) {
     return res.status(409).send({ message: "Ya existe un producto con ese nombre" })
