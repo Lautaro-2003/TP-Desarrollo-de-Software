@@ -66,7 +66,7 @@ RAMAS: el desarrollo se hace en la rama `Desarrollo`; `main` recibe un único me
 ## Cómo correr el proyecto
 
 1. `npm install` y `npm install --prefix frontend`
-2. Copiar `.env.example` a `.env` y completar `MONGODB_URI` con la cadena de conexión de Atlas y `JWT_SECRET` con un secreto largo y aleatorio. Si aparece `querySrv ECONNREFUSED`, descomentar `DNS_SERVERS`.
+2. Copiar `.env.example` a `.env` y completar `MONGODB_URI` con la cadena de conexión de Atlas y `JWT_SECRET` con un secreto largo y aleatorio. Si aparece `querySrv ECONNREFUSED`, descomentar `DNS_SERVERS`. Para que los mails de confirmación salgan de verdad, completar `SMTP_URL` (ej. `smtp://usuario:clave@smtp.gmail.com:587`) y, si hace falta, `MAIL_FROM` y `APP_URL`; sin `SMTP_URL` el link de confirmación se muestra en la consola del backend.
 3. `npm run seed`: carga los datos de la demo: 6 categorías, 25 productos con foto ilustrativa de Unsplash, 7 clientes, 17 pedidos en todos los estados (dos pendientes con ítems, para que el admin los marque como pagados), 27 reseñas y 5 descuentos (3 vigentes, uno vencido y uno programado). En una base ya cargada, volver a correrlo agrega lo que falte y actualiza el slug (la URL legible, ej. `/productos/rtx-4070` o `/?categoria=placas-de-video`) de productos y categorías y la foto de los productos del demo, sin tocar el resto
 4. `npm run start:dev`: levanta la API en `http://localhost:3000/api`
 5. En otra terminal, `npm run dev --prefix frontend`: levanta la tienda en `http://localhost:5173` (Vite redirige `/api` al backend)
@@ -80,6 +80,10 @@ Usuarios de prueba del seed:
 | Cliente (con compras y reseñas) | `maria.gomez@mail.com` | `cliente1234` |
 | Cliente (con compras y reseñas) | `lucia.fernandez@mail.com` | `cliente1234` |
 | Clientes (con compras y reseñas) | `martin.rodriguez@mail.com`, `valentina.lopez@mail.com`, `tomas.benitez@mail.com`, `camila.ruiz@mail.com` | `cliente1234` |
+
+## Confirmación del email
+
+Al registrarse, la cuenta queda sin confirmar y le llega un mail con un link a `/confirmar/<token>`. Al abrirlo, la tienda llama a `GET /api/auth/confirm/:token`, que marca el email como confirmado y borra el token (el link sirve una sola vez). Hasta entonces el login responde 403 y reenvía el mail, por si no llegó. Los usuarios del seed y los creados antes de esta función no tienen el campo y entran igual.
 
 ## Roles y permisos
 
@@ -97,7 +101,7 @@ Las rutas marcadas con 🔒 requieren el header `Authorization: Bearer <token>`.
 
 | Recurso | Ruta | Notas |
 |---|---|---|
-| Autenticación | `/api/auth` | `POST /register` (crea un cliente), `POST /login` (devuelve el token), `GET /me` 🔒 |
+| Autenticación | `/api/auth` | `POST /register` (crea un cliente y le manda el mail de confirmación), `GET /confirm/:token` (confirma el email), `POST /login` (devuelve el token; 403 si el email no está confirmado), `GET /me` 🔒 |
 | Categorías | `/api/categories` | CRUD (escritura 🔒 admin); no se borra una categoría con productos o descuentos |
 | Productos | `/api/products` | CRUD (escritura 🔒 admin); filtro `?categoryId=`; requiere categoría existente; `rating` muestra el promedio de reseñas |
 | Descuentos | `/api/discounts` | CRUD (escritura 🔒 admin); filtro `?categoryId=`; porcentaje 1–100 vigente entre `startDate` y `endDate`; si hay varios vigentes se aplica el mayor al congelar el precio del ítem |
