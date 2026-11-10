@@ -94,6 +94,7 @@ function CrudSection({ singular, path, fields, categories }: (typeof SECTIONS)[n
   }
 
   async function remove(id: string) {
+    if (!confirm(`¿Eliminar ${singular === "categoría" ? "esta" : "este"} ${singular}? No se puede deshacer.`)) return
     setError("")
     try {
       await api("DELETE", `${path}/${id}`)

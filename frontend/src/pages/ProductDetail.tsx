@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useState } from "react"
 import { Link, useParams } from "react-router"
-import { api, ApiError, Category, Discount, Product, Review, date, designators } from "../api"
+import { api, ApiError, Category, Discount, Order, Product, Review, date, designators } from "../api"
 import { useSession } from "../session"
 import { Price, StarRow, Stars, Stock } from "./Catalog"
 
@@ -34,6 +34,15 @@ export default function ProductDetail() {
   useEffect(() => {
     if (product) api<Product[]>("GET", `/products?categoryId=${product.categoryId}`).then(setSiblings)
   }, [product?.categoryId])
+  // mismo criterio que el backend: reseña quien tiene un pedido ya pagado con este producto
+  const [bought, setBought] = useState(false)
+  useEffect(() => {
+    setBought(false)
+    if (user?.role !== "cliente") return
+    api<Order[]>("GET", "/orders")
+      .then((orders) => Promise.all(orders.filter((o) => o.status !== "pendiente").map((o) => api<Order>("GET", `/orders/${o._id}`))))
+      .then((details) => setBought(details.some((o) => o.items?.some((i) => i.productId === id))))
+  }, [user, id])
 
   async function submit(e: FormEvent) {
     e.preventDefault()
@@ -48,8 +57,14 @@ export default function ProductDetail() {
   }
 
   async function remove(reviewId: string) {
-    await api("DELETE", `/reviews/${reviewId}`)
-    load()
+    if (!confirm("¿Eliminar esta reseña? No se puede deshacer.")) return
+    setError("")
+    try {
+      await api("DELETE", `/reviews/${reviewId}`)
+      load()
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "No se pudo eliminar la reseña")
+    }
   }
 
   if (missing)
@@ -155,7 +170,10 @@ export default function ProductDetail() {
             ))}
           </ul>
 
-          {user?.role === "cliente" && !alreadyReviewed && (
+          {/* el error del formulario queda adentro; acá se muestra el de borrar una reseña */}
+          {error && !(user?.role === "cliente" && bought && !alreadyReviewed) && <p className="error">{error}</p>}
+          {user?.role === "cliente" && !bought && <p className="empty">Vas a poder reseñar este producto cuando lo compres y pagues.</p>}
+          {user?.role === "cliente" && bought && !alreadyReviewed && (
             <form onSubmit={submit} className="form review-form">
               <h3>Dejá tu reseña</h3>
               <label>
@@ -180,7 +198,10 @@ export default function ProductDetail() {
           )}
           {!user && (
             <p className="empty">
-              <Link to="/login">Ingresá</Link> para dejar una reseña de un producto que compraste.
+              <Link to="/login" state={{ from: `/productos/${id}` }}>
+                Ingresá
+              </Link>{" "}
+              para dejar una reseña de un producto que compraste.
             </p>
           )}
         </section>
