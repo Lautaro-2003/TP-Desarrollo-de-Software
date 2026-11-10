@@ -7,6 +7,7 @@ import { Ref } from "./Catalog"
 
 const STEPS: OrderStatus[] = ["pendiente", "pagado", "enviado", "entregado"]
 const LABEL: Record<OrderStatus, string> = { pendiente: "Pendiente", pagado: "Pagado", enviado: "Enviado", entregado: "Entregado" }
+const PLURAL: Record<OrderStatus, string> = { pendiente: "Pendientes", pagado: "Pagados", enviado: "Enviados", entregado: "Entregados" }
 const NEXT: Partial<Record<OrderStatus, OrderStatus>> = { pendiente: "pagado", pagado: "enviado", enviado: "entregado" }
 const ACTION: Record<OrderStatus, string> = { pendiente: "", pagado: "Pagar", enviado: "Marcar como enviado", entregado: "Marcar como entregado" }
 
@@ -47,8 +48,11 @@ export function MyOrders() {
   const { user } = useSession()
   const [orders, setOrders] = useState<Order[] | null>(null)
   const [users, setUsers] = useState<User[]>([])
+  // el admin filtra por estado para encontrar lo que le toca mover (pendientes por cobrar, pagados por enviar)
+  const [filter, setFilter] = useState<OrderStatus | "todos">("todos")
   const admin = user?.role === "admin"
   const Title = admin ? "h1" : "h2"
+  const shown = orders?.filter((o) => filter === "todos" || o.status === filter) ?? []
 
   useEffect(() => {
     api<Order[]>("GET", "/orders").then((list) => setOrders([...list].sort((a, b) => b.date.localeCompare(a.date))))
@@ -72,7 +76,20 @@ export function MyOrders() {
           )}
         </div>
       )}
-      {orders && orders.length > 0 && (
+      {admin && orders && orders.length > 0 && (
+        <div className="tabs" role="group" aria-label="Filtrar por estado">
+          {(["todos", ...STEPS] as const).map((s) => (
+            <button key={s} aria-pressed={filter === s} onClick={() => setFilter(s)}>
+              {s === "todos" ? "Todos" : PLURAL[s]}
+              <span className="count">{s === "todos" ? orders.length : orders.filter((o) => o.status === s).length}</span>
+            </button>
+          ))}
+        </div>
+      )}
+      {orders && orders.length > 0 && shown.length === 0 && filter !== "todos" && (
+        <p className="empty">No hay pedidos {PLURAL[filter].toLowerCase()}.</p>
+      )}
+      {shown.length > 0 && (
         <div className="table-wrap">
           <table>
             <thead>
@@ -87,7 +104,7 @@ export function MyOrders() {
               </tr>
             </thead>
             <tbody>
-              {orders.map((o) => (
+              {shown.map((o) => (
                 <tr key={o._id}>
                   <td>{date(o.date)}</td>
                   {admin && <td>{users.find((u) => u._id === o.userId)?.name ?? "…"}</td>}

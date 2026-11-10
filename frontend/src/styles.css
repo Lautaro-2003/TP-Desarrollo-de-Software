@@ -1475,10 +1475,18 @@ label.sort {
   color: var(--ink);
 }
 
-.tabs button[aria-selected="true"] {
+.tabs button[aria-selected="true"],
+.tabs button[aria-pressed="true"] {
   color: var(--ink);
   font-weight: 600;
   box-shadow: inset 0 -3px 0 var(--oro);
+}
+
+/* cantidad de pedidos en cada estado del filtro */
+.tabs .count {
+  margin-left: 6px;
+  color: var(--muted);
+  font-size: var(--fs-s);
 }
 
 .admin-grid {
