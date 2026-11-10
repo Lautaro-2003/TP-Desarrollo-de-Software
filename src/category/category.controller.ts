@@ -4,8 +4,15 @@ import { CategoryRepository } from "./category.Repository.js"
 import { Category } from "./category.entity.js"
 import { db } from "../shared/db/conn.js"
 import { parseObjectId } from "../shared/objectId.js"
+import { slugify } from "../shared/slug.js"
 
 const repository = new CategoryRepository()
+
+// el slug sale del nombre y va en la URL del catálogo (/?categoria=placas-de-video): dos categorías no pueden compartirlo
+async function slugTaken(slug: string, exceptId?: string) {
+  const other = await repository.findBySlug(slug)
+  return !!other && other._id!.toString() !== exceptId
+}
 
 function sanitizeCategoryInput(req: Request, res: Response, next: NextFunction) {
   req.body.sanitizedInput = {
@@ -47,6 +54,8 @@ function buildFields(input: Record<string, unknown>): Partial<Category> {
   const fields: Partial<Category> = {}
   if ("name" in input) fields.name = (input.name as string).trim()
   if ("description" in input) fields.description = (input.description as string).trim()
+  // al renombrar cambia la URL de la categoría
+  if (fields.name !== undefined) fields.slug = slugify(fields.name, "categoria")
   return fields
 }
 
@@ -74,7 +83,10 @@ async function add(req: Request, res: Response) {
   }
 
   const fields = buildFields(input)
-  const category = await repository.add(new Category(fields.name!, fields.description!))
+  if (await slugTaken(fields.slug!)) {
+    return res.status(409).send({ message: "Ya existe una categoría con ese nombre" })
+  }
+  const category = await repository.add(new Category(fields.name!, fields.description!, fields.slug!))
   return res.status(201).send({ message: "Categoría creada", data: category })
 }
 
@@ -93,7 +105,11 @@ async function update(req: Request, res: Response) {
     return res.status(400).send({ message: validationError })
   }
 
-  const category = await repository.update(id, buildFields(input) as Category)
+  const fields = buildFields(input)
+  if (fields.slug !== undefined && (await slugTaken(fields.slug, id))) {
+    return res.status(409).send({ message: "Ya existe una categoría con ese nombre" })
+  }
+  const category = await repository.update(id, fields as Category)
   if (!category) {
     return res.status(404).send({ message: "Categoría no encontrada" })
   }

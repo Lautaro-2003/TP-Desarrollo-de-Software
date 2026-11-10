@@ -12,6 +12,8 @@ await db.collection("categories").updateOne(
       name: "Placas de Video",
       description: "Tarjetas gráficas para gaming, diseño y renderizado",
     },
+    // el slug se actualiza siempre, para que una base ya cargada lo reciba al volver a correr el seed
+    $set: { slug: "placas-de-video" },
   },
   { upsert: true }
 )
@@ -23,6 +25,7 @@ await db.collection("categories").updateOne(
       name: "Periféricos",
       description: "Teclados, mouses y auriculares",
     },
+    $set: { slug: "perifericos" },
   },
   { upsert: true }
 )

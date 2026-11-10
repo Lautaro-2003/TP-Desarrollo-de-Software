@@ -5,6 +5,8 @@ import { User, USER_ROLES, UserRole } from "./user.entity.js"
 import { db } from "../shared/db/conn.js"
 import { parseObjectId } from "../shared/objectId.js"
 import { hashPassword, isAdmin, canAccess } from "../auth/auth.js"
+import { randomBytes } from "node:crypto"
+import { sendConfirmationEmail } from "../shared/mailer.js"
 
 const repository = new UserRepository()
 
@@ -136,8 +138,17 @@ async function add(req: Request, res: Response) {
   // si no se indica rol, el usuario se registra como cliente
   const userInput = new User(fields.name!, fields.email!, fields.address!, fields.role ?? "cliente")
   userInput.passwordHash = fields.passwordHash
+  // la cuenta queda sin confirmar hasta que abre el link que le llega por mail
+  userInput.emailConfirmed = false
+  userInput.emailToken = randomBytes(32).toString("hex")
   const user = await repository.add(userInput)
-  return res.status(201).send({ message: "Usuario creado", data: user })
+  try {
+    await sendConfirmationEmail(userInput.email, userInput.name, userInput.emailToken)
+  } catch (err) {
+    // el usuario ya quedó creado: al intentar ingresar se le reenvía el mail
+    console.error("No se pudo mandar el mail de confirmación", err)
+  }
+  return res.status(201).send({ message: "Usuario creado: revisá tu email para confirmar la cuenta", data: user })
 }
 
 async function update(req: Request, res: Response) {

@@ -5,6 +5,8 @@ import { ObjectId } from 'mongodb'
 
 const categories = db.collection<Category>('categories')
 
+await categories.createIndex({ slug: 1 })
+
 export class CategoryRepository implements Repository<Category> {
   public async findAll(): Promise<Category[] | undefined> {
     return await categories.find().toArray()
@@ -13,6 +15,10 @@ export class CategoryRepository implements Repository<Category> {
   public async findOne(item: { id: string }): Promise<Category | undefined> {
     const _id = new ObjectId(item.id)
     return (await categories.findOne({ _id })) || undefined
+  }
+
+  public async findBySlug(slug: string): Promise<Category | undefined> {
+    return (await categories.findOne({ slug })) || undefined
   }
 
   public async add(item: Category): Promise<Category | undefined> {

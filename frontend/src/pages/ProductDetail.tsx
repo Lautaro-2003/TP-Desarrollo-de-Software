@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useState } from "react"
 import { Link, useNavigate, useParams } from "react-router"
-import { api, ApiError, Category, Discount, Order, Product, Review, date, designators, productPath } from "../api"
+import { api, ApiError, Category, Discount, Order, Product, Review, categoryPath, date, designators, productPath } from "../api"
 import { useSession } from "../session"
 import { CartControl, Icon, ProductImage } from "../ui"
 import { Price, StarRow, Stars, Stock } from "./Catalog"
@@ -102,7 +102,7 @@ export default function ProductDetail() {
           </li>
           {category && (
             <li>
-              <Link to={`/?categoria=${category._id}`}>{category.name}</Link>
+              <Link to={categoryPath(category)}>{category.name}</Link>
             </li>
           )}
           <li aria-current="page">{product.name}</li>

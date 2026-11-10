@@ -40,6 +40,13 @@ async function login(email: string, password: string) {
   return (await api("POST", "/auth/login", { email, password }, { token: null })).body.data.token as string
 }
 
+// hace lo mismo que abrir el link del mail: lee el token de la base y llama al endpoint de confirmación
+async function confirmEmail(email: string) {
+  const { db } = await import("../shared/db/conn.js")
+  const user = await db.collection("users").findOne({ email })
+  return api("GET", `/auth/confirm/${user!.emailToken}`, undefined, { token: null })
+}
+
 before(async () => {
   // seguridad: nunca borrar una base que no sea de prueba
   process.env.MONGODB_DB = TEST_DB
@@ -89,6 +96,9 @@ describe("categorías", () => {
     const created = await api("POST", "/categories", { name: "  Almacenamiento ", description: "SSD y HDD" })
     assert.equal(created.status, 201)
     assert.equal(created.body.data.name, "Almacenamiento")
+    assert.equal(created.body.data.slug, "almacenamiento")
+    assert.equal((await api("POST", "/categories", { name: "almacenamiento", description: "repetida" })).status, 409)
+    assert.equal((await api("PATCH", `/categories/${PLACAS}`, { name: "Almacenamiento" })).status, 409)
     assert.equal((await api("POST", "/categories", { description: "sin nombre" })).status, 400)
     assert.equal((await api("POST", "/categories", { name: "", description: "x" })).status, 400)
 
@@ -98,6 +108,8 @@ describe("categorías", () => {
     const patched = await api("PATCH", `/categories/${id}`, { description: "Discos" })
     assert.equal(patched.body.data.description, "Discos")
     assert.equal(patched.body.data.name, "Almacenamiento")
+    // renombrar cambia el slug
+    assert.equal((await api("PATCH", `/categories/${id}`, { name: "Discos Rígidos" })).body.data.slug, "discos-rigidos")
     assert.equal((await api("DELETE", `/categories/${id}`)).status, 200)
   })
   test("ids inválidos e inexistentes", async () => {
@@ -369,6 +381,7 @@ describe("reseñas (Epic 3)", () => {
 
   before(async () => {
     await api("POST", "/auth/register", { name: "Luis", email: "luis@mail.com", address: "Calle 2", password: "luis12345" }, { token: null })
+    await confirmEmail("luis@mail.com")
     luisToken = await login("luis@mail.com", "luis12345")
   })
 
@@ -542,6 +555,7 @@ describe("autenticación y permisos", () => {
   before(async () => {
     const res = await api("POST", "/auth/register", { name: "Sofía", email: "sofia@mail.com", address: "Calle 3", password: "sofia12345" }, { token: null })
     sofia = res.body.data._id
+    await confirmEmail("sofia@mail.com")
     sofiaToken = await login("sofia@mail.com", "sofia12345")
   })
 
@@ -550,12 +564,33 @@ describe("autenticación y permisos", () => {
     assert.equal(res.status, 201)
     assert.equal(res.body.data.role, "cliente")
     assert.equal(res.body.data.passwordHash, undefined)
+    assert.equal(res.body.data.emailToken, undefined)
     const base = { name: "Otro", email: "otro@mail.com", address: "x" }
     assert.equal((await api("POST", "/auth/register", { ...base, password: "corta" }, { token: null })).status, 400)
     assert.equal((await api("POST", "/auth/register", base, { token: null })).status, 400)
     // nadie se registra como admin por su cuenta
     assert.equal((await api("POST", "/auth/register", { ...base, password: "otro12345", role: "admin" }, { token: null })).status, 403)
     assert.equal((await api("POST", "/auth/register", { ...base, email: "pedro@mail.com", password: "otro12345" }, { token: null })).status, 409)
+  })
+
+  test("confirmación de email: sin confirmar no entra, el link sirve una sola vez", async () => {
+    const login = () => api("POST", "/auth/login", { email: "pedro@mail.com", password: "pedro12345" }, { token: null })
+    const pending = await login()
+    assert.equal(pending.status, 403)
+    assert.match(pending.body.message, /pedro@mail.com/)
+
+    assert.equal((await api("GET", "/auth/confirm/token-trucho", undefined, { token: null })).status, 404)
+    const { db } = await import("../shared/db/conn.js")
+    const token = (await db.collection("users").findOne({ email: "pedro@mail.com" }))!.emailToken
+    const ok = await api("GET", `/auth/confirm/${token}`, undefined, { token: null })
+    assert.equal(ok.status, 200)
+    assert.equal(ok.body.data.emailConfirmed, true)
+    assert.equal(ok.body.data.emailToken, undefined)
+    assert.equal((await api("GET", `/auth/confirm/${token}`, undefined, { token: null })).status, 404)
+
+    const logged = await login()
+    assert.equal(logged.status, 200)
+    assert.equal(logged.body.data.user.emailToken, undefined)
   })
 
   test("login y sesión", async () => {
