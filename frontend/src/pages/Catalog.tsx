@@ -72,7 +72,7 @@ type SortId = keyof typeof SORTS
 export default function Catalog() {
   const { user, cart, setQuantity } = useSession()
   const [params, setParams] = useSearchParams()
-  const categoryId = params.get("categoria") ?? ""
+  const categoryParam = params.get("categoria") ?? ""
   const query = params.get("q") ?? ""
   // null = todavía cargando (para no mostrar "no hay productos" antes de tiempo)
   const [products, setProducts] = useState<Product[] | null>(null)
@@ -98,6 +98,8 @@ export default function Catalog() {
   }, [])
 
   const refs = designators(products ?? [], categories)
+  // ?categoria= trae el slug (o el id, en links viejos); mientras cargan las categorías se usa tal cual
+  const categoryId = categoryParam && (categories.find((c) => c.slug === categoryParam || c._id === categoryParam)?._id ?? categoryParam)
   const categoryName = (id: string) => categories.find((c) => c._id === id)?.name ?? ""
   const finalPrice = (p: Product) => withDiscount(p.price, discountFor(discounts, p.categoryId))
   const sortValue = {
@@ -228,7 +230,7 @@ export default function Catalog() {
             <ul className="deals">
               {activeDiscounts.map((d) => (
                 <li key={d._id}>
-                  <Link to={`/?categoria=${d.categoryId}`}>{categoryName(d.categoryId)}</Link>
+                  <Link to={`/?categoria=${categories.find((c) => c._id === d.categoryId)?.slug ?? d.categoryId}`}>{categoryName(d.categoryId)}</Link>
                   <span>
                     <span className="off">-{d.percentage}%</span> <span className="muted small">hasta el {date(d.endDate)}</span>
                   </span>

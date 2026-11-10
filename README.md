@@ -67,7 +67,7 @@ RAMAS: el desarrollo se hace en la rama `Desarrollo`; `main` recibe un único me
 
 1. `npm install` y `npm install --prefix frontend`
 2. Copiar `.env.example` a `.env` y completar `MONGODB_URI` con la cadena de conexión de Atlas y `JWT_SECRET` con un secreto largo y aleatorio. Si aparece `querySrv ECONNREFUSED`, descomentar `DNS_SERVERS`.
-3. `npm run seed`: carga los datos de la demo: 6 categorías, 25 productos con foto ilustrativa de Unsplash, 7 clientes, 17 pedidos en todos los estados (dos pendientes con ítems, para que el admin los marque como pagados), 27 reseñas y 5 descuentos (3 vigentes, uno vencido y uno programado). En una base ya cargada, volver a correrlo agrega lo que falte y actualiza el slug (la URL legible, ej. `/productos/rtx-4070`) y la foto de los productos del demo, sin tocar el resto
+3. `npm run seed`: carga los datos de la demo: 6 categorías, 25 productos con foto ilustrativa de Unsplash, 7 clientes, 17 pedidos en todos los estados (dos pendientes con ítems, para que el admin los marque como pagados), 27 reseñas y 5 descuentos (3 vigentes, uno vencido y uno programado). En una base ya cargada, volver a correrlo agrega lo que falte y actualiza el slug (la URL legible, ej. `/productos/rtx-4070` o `/?categoria=placas-de-video`) de productos y categorías y la foto de los productos del demo, sin tocar el resto
 4. `npm run start:dev`: levanta la API en `http://localhost:3000/api`
 5. En otra terminal, `npm run dev --prefix frontend`: levanta la tienda en `http://localhost:5173` (Vite redirige `/api` al backend)
 

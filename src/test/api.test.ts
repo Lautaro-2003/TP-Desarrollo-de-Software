@@ -89,6 +89,9 @@ describe("categorías", () => {
     const created = await api("POST", "/categories", { name: "  Almacenamiento ", description: "SSD y HDD" })
     assert.equal(created.status, 201)
     assert.equal(created.body.data.name, "Almacenamiento")
+    assert.equal(created.body.data.slug, "almacenamiento")
+    assert.equal((await api("POST", "/categories", { name: "almacenamiento", description: "repetida" })).status, 409)
+    assert.equal((await api("PATCH", `/categories/${PLACAS}`, { name: "Almacenamiento" })).status, 409)
     assert.equal((await api("POST", "/categories", { description: "sin nombre" })).status, 400)
     assert.equal((await api("POST", "/categories", { name: "", description: "x" })).status, 400)
 
@@ -98,6 +101,8 @@ describe("categorías", () => {
     const patched = await api("PATCH", `/categories/${id}`, { description: "Discos" })
     assert.equal(patched.body.data.description, "Discos")
     assert.equal(patched.body.data.name, "Almacenamiento")
+    // renombrar cambia el slug
+    assert.equal((await api("PATCH", `/categories/${id}`, { name: "Discos Rígidos" })).body.data.slug, "discos-rigidos")
     assert.equal((await api("DELETE", `/categories/${id}`)).status, 200)
   })
   test("ids inválidos e inexistentes", async () => {

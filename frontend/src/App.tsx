@@ -1,7 +1,7 @@
 import { Link, NavLink, Navigate, Route, Routes, useLocation, useNavigate, useSearchParams } from "react-router"
 import { FormEvent, ReactNode, useEffect, useRef, useState } from "react"
 import { useSession } from "./session"
-import { api, Category, Discount, discountFor, prefixFor } from "./api"
+import { api, Category, Discount, categoryPath, discountFor, prefixFor } from "./api"
 import { Icon } from "./ui"
 import Catalog from "./pages/Catalog"
 import ProductDetail from "./pages/ProductDetail"
@@ -177,7 +177,7 @@ function CategoryBar() {
       {categories.map((c) => {
         const pct = discountFor(discounts, c._id)
         return (
-          <Link key={c._id} to={`/?categoria=${c._id}`} aria-current={active === c._id ? "page" : undefined}>
+          <Link key={c._id} to={categoryPath(c)} aria-current={active === c.slug || active === c._id ? "page" : undefined}>
             <span className="prefix">{prefixFor(c.name)}</span>
             {c.name}
             {pct > 0 && <span className="off">-{pct}%</span>}

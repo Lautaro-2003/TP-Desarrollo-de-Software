@@ -1,7 +1,7 @@
 // tipos de la API (los _id y las fechas llegan como string en el JSON)
 export type Role = "cliente" | "admin"
 export type User = { _id: string; name: string; email: string; address: string; role: Role }
-export type Category = { _id: string; name: string; description: string }
+export type Category = { _id: string; name: string; description: string; slug?: string }
 export type Product = {
   _id: string
   name: string
@@ -17,6 +17,8 @@ export type Product = {
 
 // la URL del producto usa su slug (/productos/rtx-4070); los productos viejos sin slug caen al id
 export const productPath = (p: Product) => `/productos/${p.slug || p._id}`
+// lo mismo con las categorías: /?categoria=placas-de-video (las viejas sin slug caen al id)
+export const categoryPath = (c: Category) => `/?categoria=${c.slug || c._id}`
 export type Discount = { _id: string; categoryId: string; percentage: number; startDate: string; endDate: string }
 export type OrderStatus = "pendiente" | "pagado" | "enviado" | "entregado"
 export type OrderItem = { _id: string; orderId: string; productId: string; quantity: number; unitPrice: number; subtotal: number }
