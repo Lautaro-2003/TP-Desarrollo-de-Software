@@ -219,7 +219,7 @@ a:hover {
   background: var(--surface);
   border: 1px solid var(--line-strong);
   border-top: 3px solid var(--oro);
-  border-radius: 3px;
+  border-radius: 0 0 3px 3px;
   box-shadow: 0 6px 18px rgb(0 0 0 / 0.18);
 }
 
