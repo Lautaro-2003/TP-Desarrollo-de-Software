@@ -4,8 +4,26 @@ import { Product } from "./product.entity.js"
 import { db } from "../shared/db/conn.js"
 import { parseObjectId } from "../shared/objectId.js"
 import { ObjectId } from "mongodb"
+import { slugify } from "../shared/slug.js"
 
 const repository = new ProductRepository()
+
+// la foto es opcional: una URL http(s), o texto vacío para quitarla
+function validateImage(input: Record<string, unknown>): string | null {
+  if (!("image" in input)) return null
+  if (typeof input.image !== "string") return "La imagen debe ser una URL"
+  const image = input.image.trim()
+  if (image !== "" && (!/^https?:\/\/\S+$/i.test(image) || image.length > 500)) {
+    return "La imagen debe ser una URL que empiece con http:// o https://"
+  }
+  return null
+}
+
+// el slug sale del nombre y es la URL del producto: dos productos no pueden compartirlo
+async function slugTaken(slug: string, exceptId?: string) {
+  const other = await repository.findBySlug(slug)
+  return !!other && other._id!.toString() !== exceptId
+}
 
 function sanitizeProductInput(req: Request, res: Response, next: NextFunction) {
   req.body.sanitizedInput = {
@@ -15,6 +33,7 @@ function sanitizeProductInput(req: Request, res: Response, next: NextFunction) {
     stock: req.body.stock,
     status: req.body.status,
     categoryId: req.body.categoryId,
+    image: req.body.image,
   }
 
   Object.keys(req.body.sanitizedInput).forEach((key) => {
@@ -44,7 +63,7 @@ function validateForCreate(input: Record<string, unknown>): string | null {
   if (!("categoryId" in input) || parseObjectId(input.categoryId) === null) {
     return "categoryId inválido"
   }
-  return null
+  return validateImage(input)
 }
 
 function validateForUpdate(input: Record<string, unknown>): string | null {
@@ -76,7 +95,7 @@ function validateForUpdate(input: Record<string, unknown>): string | null {
   if ("categoryId" in input && parseObjectId(input.categoryId) === null) {
     return "categoryId inválido"
   }
-  return null
+  return validateImage(input)
 }
 
 function buildUpdateFields(input: Record<string, unknown>): Partial<Product> {
@@ -99,6 +118,13 @@ function buildUpdateFields(input: Record<string, unknown>): Partial<Product> {
   if ("categoryId" in input) {
     fields.categoryId = parseObjectId(input.categoryId)!
   }
+  if ("image" in input) {
+    fields.image = (input.image as string).trim()
+  }
+  // al renombrar cambia la URL del producto
+  if (fields.name !== undefined) {
+    fields.slug = slugify(fields.name)
+  }
   return fields
 }
 
@@ -116,10 +142,8 @@ async function findAll(req: Request, res: Response) {
 
 async function findOne(req: Request, res: Response) {
   const id = req.params.id as string
-  if (!parseObjectId(id)) {
-    return res.status(400).send({ message: "Id de producto inválido" })
-  }
-  const product = await repository.findOne({ id })
+  // se busca por id o por slug (la tienda usa el slug en la URL: /productos/rtx-4070)
+  const product = parseObjectId(id) ? await repository.findOne({ id }) : await repository.findBySlug(id)
   if (!product) {
     return res.status(404).send({ message: "Producto no encontrado" })
   }
@@ -139,14 +163,23 @@ async function add(req: Request, res: Response) {
     return res.status(404).send({ message: "Categoría no encontrada" })
   }
 
+  const name = (input.name as string).trim()
+  const slug = slugify(name)
+  if (await slugTaken(slug)) {
+    return res.status(409).send({ message: "Ya existe un producto con ese nombre" })
+  }
+
   const productInput = new Product(
-    (input.name as string).trim(),
+    name,
     (input.description as string).trim(),
     input.price as number,
     input.stock as number,
     (input.status as string).trim(),
-    categoryId
+    categoryId,
+    slug
   )
+  const image = typeof input.image === "string" ? input.image.trim() : ""
+  if (image) productInput.image = image
 
   const product = await repository.add(productInput)
   return res.status(201).send({ message: "Producto creado", data: product })
@@ -174,6 +207,10 @@ async function update(req: Request, res: Response) {
   }
 
   const fields = buildUpdateFields(input)
+
+  if (fields.slug !== undefined && (await slugTaken(fields.slug, id))) {
+    return res.status(409).send({ message: "Ya existe un producto con ese nombre" })
+  }
 
   if ("categoryId" in fields) {
     const category = await db.collection("categories").findOne({ _id: fields.categoryId })

@@ -4,6 +4,8 @@ import { ObjectId } from "mongodb"
 import { db } from "./conn.js"
 import { hashPassword } from "../../auth/auth.js"
 import { ReviewRepository } from "../../review/review.Repository.js"
+import { slugify } from "../slug.js"
+import { unsplash } from "./unsplash.js"
 
 const id = (n: number) => new ObjectId(`675000000000000000000${String(n).padStart(3, "0")}`)
 const upsert = (collection: string, _id: ObjectId, doc: object) =>
@@ -25,20 +27,17 @@ const AURICULARES = id(103)
 const SSD = id(104)
 const HDD = id(105)
 const MONITOR = id(106)
-const product = (name: string, description: string, price: number, stock: number, categoryId: ObjectId) => ({
-  name,
-  description,
-  price,
-  stock,
-  status: "disponible",
-  categoryId,
-})
-await upsert("products", RX, product("RX 7800 XT", "Placa de video de 16 GB para jugar en 1440p", 650, 4, PLACAS))
-await upsert("products", MOUSE, product("Mouse inalámbrico", "Mouse ergonómico con sensor de 16000 DPI", 45, 25, PERIFERICOS))
-await upsert("products", AURICULARES, product("Auriculares gamer", "Auriculares con micrófono y sonido envolvente", 90, 12, PERIFERICOS))
-await upsert("products", SSD, product("SSD NVMe 1 TB", "Disco de estado sólido PCIe 4.0", 85, 30, ALMACENAMIENTO))
-await upsert("products", HDD, product("Disco HDD 2 TB", "Disco rígido de 7200 RPM", 60, 15, ALMACENAMIENTO))
-await upsert("products", MONITOR, product('Monitor 27" 144 Hz', "Monitor IPS QHD de 27 pulgadas", 320, 6, MONITORES))
+// el alta respeta lo que ya haya en la base; slug y foto se actualizan siempre (una base ya cargada también los recibe)
+const product = async (_id: ObjectId, name: string, description: string, price: number, stock: number, categoryId: ObjectId, photo: string) => {
+  await upsert("products", _id, { name, description, price, stock, status: "disponible", categoryId })
+  await db.collection("products").updateOne({ _id }, { $set: { slug: slugify(name), image: unsplash(photo) } })
+}
+await product(RX, "RX 7800 XT", "Placa de video de 16 GB para jugar en 1440p", 650, 4, PLACAS, "1778621962156-f9b3d255fb5f")
+await product(MOUSE, "Mouse inalámbrico", "Mouse ergonómico con sensor de 16000 DPI", 45, 25, PERIFERICOS, "1527864550417-7fd91fc51a46")
+await product(AURICULARES, "Auriculares gamer", "Auriculares con micrófono y sonido envolvente", 90, 12, PERIFERICOS, "1610041321327-b794c052db27")
+await product(SSD, "SSD NVMe 1 TB", "Disco de estado sólido PCIe 4.0", 85, 30, ALMACENAMIENTO, "1677086586945-ef95ab632232")
+await product(HDD, "Disco HDD 2 TB", "Disco rígido de 7200 RPM", 60, 15, ALMACENAMIENTO, "1601737487795-dab272f52420")
+await product(MONITOR, 'Monitor 27" 144 Hz', "Monitor IPS QHD de 27 pulgadas", 320, 6, MONITORES, "1626218174358-7769486c4b79")
 
 // descuento vigente durante la presentación: Almacenamiento al 15%
 await upsert("discounts", id(201), {
