@@ -32,12 +32,12 @@ const product = async (_id: ObjectId, name: string, description: string, price: 
   await upsert("products", _id, { name, description, price, stock, status: "disponible", categoryId })
   await db.collection("products").updateOne({ _id }, { $set: { slug: slugify(name), image: unsplash(photo) } })
 }
-await product(RX, "RX 7800 XT", "Placa de video de 16 GB para jugar en 1440p", 650, 4, PLACAS, "1778621962156-f9b3d255fb5f")
+await product(RX, "RX 7800 XT", "Placa de video de 16 GB para jugar en 1440p", 650, 4, PLACAS, "1651873811841-bf59e1a972db")
 await product(MOUSE, "Mouse inalámbrico", "Mouse ergonómico con sensor de 16000 DPI", 45, 25, PERIFERICOS, "1527864550417-7fd91fc51a46")
-await product(AURICULARES, "Auriculares gamer", "Auriculares con micrófono y sonido envolvente", 90, 12, PERIFERICOS, "1610041321327-b794c052db27")
+await product(AURICULARES, "Auriculares gamer", "Auriculares con micrófono y sonido envolvente", 90, 12, PERIFERICOS, "1583394838336-acd977736f90")
 await product(SSD, "SSD NVMe 1 TB", "Disco de estado sólido PCIe 4.0", 85, 30, ALMACENAMIENTO, "1677086586945-ef95ab632232")
 await product(HDD, "Disco HDD 2 TB", "Disco rígido de 7200 RPM", 60, 15, ALMACENAMIENTO, "1601737487795-dab272f52420")
-await product(MONITOR, 'Monitor 27" 144 Hz', "Monitor IPS QHD de 27 pulgadas", 320, 6, MONITORES, "1626218174358-7769486c4b79")
+await product(MONITOR, 'Monitor 27" 144 Hz', "Monitor IPS QHD de 27 pulgadas", 320, 6, MONITORES, "1666771410003-8437c4781d49")
 
 // descuento vigente durante la presentación: Almacenamiento al 15%
 await upsert("discounts", id(201), {

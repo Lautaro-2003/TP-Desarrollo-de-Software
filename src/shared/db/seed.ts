@@ -53,7 +53,7 @@ await db.collection("products").updateOne(
       categoryId: new ObjectId("674a1b2c3d4e5f6789012345"),
     },
     // slug y foto se actualizan siempre, para que una base ya cargada los reciba al volver a correr el seed
-    $set: { slug: "rtx-4070", image: unsplash("1762838362452-fea83ce9c34c") },
+    $set: { slug: "rtx-4070", image: unsplash("1674741250252-edb6a227c166") },
   },
   { upsert: true }
 )
@@ -69,7 +69,7 @@ await db.collection("products").updateOne(
       status: "disponible",
       categoryId: new ObjectId("674a1b2c3d4e5f6789012347"),
     },
-    $set: { slug: "teclado-mecanico", image: unsplash("1635987391914-cb84b567e68f") },
+    $set: { slug: "teclado-mecanico", image: unsplash("1669884210028-81aa4c7442e5") },
   },
   { upsert: true }
 )
