@@ -28,7 +28,8 @@ export default function ProductDetail() {
         setProduct(p)
         // un enlace viejo con el id pasa a la URL legible sin dejar el id en el historial
         if (p.slug && p.slug !== slug) navigate(productPath(p), { replace: true })
-        return api<Review[]>("GET", `/reviews?productId=${p._id}`).then(setReviews)
+        // la más reciente primero, como en la lista de pedidos
+        return api<Review[]>("GET", `/reviews?productId=${p._id}`).then((list) => setReviews([...list].sort((a, b) => b.date.localeCompare(a.date))))
       })
       .catch(() => setMissing(true))
   useEffect(() => {
