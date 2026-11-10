@@ -8,7 +8,7 @@ import { Ref } from "./Catalog"
 const STEPS: OrderStatus[] = ["pendiente", "pagado", "enviado", "entregado"]
 const LABEL: Record<OrderStatus, string> = { pendiente: "Pendiente", pagado: "Pagado", enviado: "Enviado", entregado: "Entregado" }
 const NEXT: Partial<Record<OrderStatus, OrderStatus>> = { pendiente: "pagado", pagado: "enviado", enviado: "entregado" }
-const ACTION: Record<OrderStatus, string> = { pendiente: "", pagado: "Pagar", enviado: "Marcar enviado", entregado: "Marcar entregado" }
+const ACTION: Record<OrderStatus, string> = { pendiente: "", pagado: "Pagar", enviado: "Marcar como enviado", entregado: "Marcar como entregado" }
 
 // renglón del pedido: miniatura y nombre con enlace (un producto ya borrado queda solo con "…")
 function ItemName({ product }: { product?: Product }) {
@@ -114,7 +114,8 @@ export function OrderDetail() {
   const navigate = useNavigate()
   // el checkout llega con created: se avisa que el pedido falta pagarlo
   const created = (useLocation().state as { created?: boolean } | null)?.created
-  const back = user?.role === "admin" ? { to: "/pedidos", label: "Pedidos" } : { to: "/cuenta", label: "Mi cuenta" }
+  const admin = user?.role === "admin"
+  const back = admin ? { to: "/pedidos", label: "Pedidos" } : { to: "/cuenta", label: "Mi cuenta" }
   const [order, setOrder] = useState<Order | null>(null)
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
@@ -151,8 +152,19 @@ export function OrderDetail() {
   if (!order) return error ? <p className="error">{error}</p> : <p className="muted">Cargando…</p>
   const next = NEXT[order.status]
   // pagar lo puede hacer el dueño; enviar y entregar solo el admin (el backend vuelve a validarlo)
-  const canAdvance = next && (next === "pagado" || user?.role === "admin")
+  const canAdvance = next && (next === "pagado" || admin)
+  // el admin no paga: registra un pago que entró por afuera (transferencia, efectivo)
+  const actionLabel = next === "pagado" && admin ? "Marcar como pagado" : next && ACTION[next]
   const refs = designators(products, categories)
+
+  // pagar descuenta stock y el pedido ya no se puede cancelar: se confirma antes
+  function advance(status: OrderStatus) {
+    const question = admin
+      ? "¿Marcar como pagado? Hacelo solo si el pago ya entró: se descuenta el stock y no se puede deshacer."
+      : `¿Pagar ${money(order!.total)}? Después ya no vas a poder cancelar el pedido.`
+    if (status === "pagado" && !confirm(question)) return
+    run(() => api("PATCH", `/orders/${order!._id}/status`, { status }).then(load))
+  }
 
   return (
     <>
@@ -226,13 +238,12 @@ export function OrderDetail() {
             {next && !canAdvance && <p className="muted small">El envío y la entrega los marca la tienda.</p>}
             {order.status === "pendiente" && (
               <p className={created ? "notice" : "muted small"} role={created ? "status" : undefined}>
-                {created && "Pedido creado. "}Falta pagarlo: el stock se reserva recién al pagar.
+                {created && "Pedido creado. "}
+                {admin ? "El cliente todavía no lo pagó" : "Falta pagarlo"}: el stock se reserva recién al pagar.
               </p>
             )}
             {error && <p className="error">{error}</p>}
-            {canAdvance && (
-              <button onClick={() => run(() => api("PATCH", `/orders/${order._id}/status`, { status: next }).then(load))}>{ACTION[next]}</button>
-            )}
+            {canAdvance && <button onClick={() => advance(next)}>{actionLabel}</button>}
             {order.status === "pendiente" && (
               <button
                 className="secondary"
