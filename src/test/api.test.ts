@@ -123,6 +123,25 @@ describe("productos", () => {
     assert.equal(created.status, 201)
     assert.equal((await api("DELETE", `/products/${created.body.data._id}`)).status, 200)
   })
+  test("slug legible para la URL, único, y foto opcional", async () => {
+    const base = { name: "Placa Ñandú 3060 Ti", description: "Placa", price: 300, stock: 2, status: "disponible", categoryId: PLACAS }
+    assert.equal((await api("POST", "/products", { ...base, image: "ftp://x.com/a.jpg" })).status, 400)
+    const created = await api("POST", "/products", { ...base, image: " https://example.com/placa.jpg " })
+    assert.equal(created.status, 201)
+    assert.equal(created.body.data.slug, "placa-nandu-3060-ti")
+    assert.equal(created.body.data.image, "https://example.com/placa.jpg")
+    // se encuentra por slug y por id; el seed también trae slug
+    assert.equal((await api("GET", "/products/placa-nandu-3060-ti", undefined, { token: null })).body.data._id, created.body.data._id)
+    assert.equal((await api("GET", "/products/rtx-4070", undefined, { token: null })).body.data._id, RTX)
+    assert.equal((await api("GET", "/products/no-existe", undefined, { token: null })).status, 404)
+    // dos productos no pueden compartir URL, ni al crear ni al renombrar
+    assert.equal((await api("POST", "/products", { ...base, name: "placa ñandu 3060-TI" })).status, 409)
+    assert.equal((await api("PATCH", `/products/${created.body.data._id}`, { name: "RTX 4070" })).status, 409)
+    const renamed = await api("PATCH", `/products/${created.body.data._id}`, { name: "Placa Ñandú 3060", image: "" })
+    assert.equal(renamed.body.data.slug, "placa-nandu-3060")
+    assert.equal(renamed.body.data.image, "")
+    assert.equal((await api("DELETE", `/products/${created.body.data._id}`)).status, 200)
+  })
   test("filtro por categoría", async () => {
     const res = await api("GET", `/products?categoryId=${PLACAS}`)
     assert.deepEqual(res.body.data.map((p: any) => p._id), [RTX])

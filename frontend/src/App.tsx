@@ -1,18 +1,22 @@
-import { Link, NavLink, Navigate, Route, Routes } from "react-router"
-import { ReactNode } from "react"
+import { Link, NavLink, Navigate, Route, Routes, useLocation, useNavigate, useSearchParams } from "react-router"
+import { FormEvent, ReactNode, useEffect, useRef, useState } from "react"
 import { useSession } from "./session"
+import { api, Category, Discount, discountFor, prefixFor } from "./api"
+import { Icon } from "./ui"
 import Catalog from "./pages/Catalog"
 import ProductDetail from "./pages/ProductDetail"
 import Cart from "./pages/Cart"
 import { Login, Register } from "./pages/Auth"
 import { MyOrders, OrderDetail } from "./pages/Orders"
+import Account from "./pages/Account"
 import Admin from "./pages/Admin"
 
-// protege una vista: sin sesión manda al login; con rol equivocado, al catálogo
+// protege una vista: sin sesión manda al login (y vuelve acá al ingresar); con rol equivocado, al catálogo
 function Private({ children, admin = false }: { children: ReactNode; admin?: boolean }) {
   const { user, loading } = useSession()
+  const { pathname } = useLocation()
   if (loading) return <p className="muted">Cargando…</p>
-  if (!user) return <Navigate to="/login" replace />
+  if (!user) return <Navigate to="/login" replace state={{ from: pathname }} />
   if (admin && user.role !== "admin") return <Navigate to="/" replace />
   return children
 }
@@ -36,29 +40,164 @@ function ChipMark() {
   )
 }
 
+// el nombre del usuario abre su menú: cuenta (con sus pedidos), las vistas del admin y salir
+function UserMenu() {
+  const { user, logout } = useSession()
+  const navigate = useNavigate()
+  const { pathname } = useLocation()
+  const [open, setOpen] = useState(false)
+  const box = useRef<HTMLDivElement>(null)
+  const toggle = useRef<HTMLButtonElement>(null)
+
+  useEffect(() => setOpen(false), [pathname])
+  // se cierra con un clic afuera o con Escape (que devuelve el foco al botón)
+  useEffect(() => {
+    if (!open) return
+    const onClick = (e: MouseEvent) => !box.current?.contains(e.target as Node) && setOpen(false)
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return
+      setOpen(false)
+      toggle.current?.focus()
+    }
+    document.addEventListener("mousedown", onClick)
+    document.addEventListener("keydown", onKey)
+    return () => {
+      document.removeEventListener("mousedown", onClick)
+      document.removeEventListener("keydown", onKey)
+    }
+  }, [open])
+
+  if (!user) return null
+  return (
+    <div className="user-menu" ref={box}>
+      <button ref={toggle} className="who" aria-expanded={open} aria-controls="menu-cuenta" onClick={() => setOpen(!open)}>
+        {user.name}
+        {user.role === "admin" && " (administrador)"}
+        <svg viewBox="0 0 10 10" aria-hidden="true">
+          <path d="M1.5 3.5l3.5 3.5 3.5-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" />
+        </svg>
+      </button>
+      {open && (
+        <ul id="menu-cuenta">
+          <li>
+            <Link to="/cuenta">{user.role === "admin" ? "Mi cuenta" : "Mi cuenta y pedidos"}</Link>
+          </li>
+          {user.role === "admin" && (
+            <>
+              <li>
+                <Link to="/pedidos">Pedidos</Link>
+              </li>
+              <li>
+                <Link to="/admin">Administración</Link>
+              </li>
+            </>
+          )}
+          <li>
+            <button
+              onClick={() => {
+                logout()
+                navigate("/")
+              }}
+            >
+              Salir
+            </button>
+          </li>
+        </ul>
+      )}
+    </div>
+  )
+}
+
+// el buscador vive en el header: en el catálogo filtra mientras se escribe; desde otra página lleva al catálogo
+function SearchBox() {
+  const navigate = useNavigate()
+  const { pathname } = useLocation()
+  const [params, setParams] = useSearchParams()
+  const onCatalog = pathname === "/"
+  const [text, setText] = useState(onCatalog ? (params.get("q") ?? "") : "")
+
+  // si la búsqueda cambia desde afuera (ej. "Ver todo el catálogo"), el campo la acompaña
+  useEffect(() => {
+    if (onCatalog) setText(params.get("q") ?? "")
+  }, [onCatalog, params.get("q")])
+
+  function change(value: string) {
+    setText(value)
+    if (!onCatalog) return
+    const next = new URLSearchParams(params)
+    if (value.trim()) next.set("q", value)
+    else next.delete("q")
+    setParams(next, { replace: true })
+  }
+
+  function submit(e: FormEvent) {
+    e.preventDefault()
+    if (!onCatalog) navigate(text.trim() ? `/?q=${encodeURIComponent(text.trim())}` : "/")
+  }
+
+  return (
+    <form className="search" role="search" onSubmit={submit}>
+      <label className="sr-only" htmlFor="buscar">
+        Buscar productos
+      </label>
+      <input id="buscar" type="search" value={text} onChange={(e) => change(e.target.value)} placeholder="Buscá placas, monitores, periféricos…" />
+      <button type="submit" aria-label="Buscar">
+        <Icon name="search" />
+      </button>
+    </form>
+  )
+}
+
+// barra de categorías: cada una con su prefijo de designador y, si tiene descuento vigente, el porcentaje
+function CategoryBar() {
+  const { pathname } = useLocation()
+  const [params] = useSearchParams()
+  const [categories, setCategories] = useState<Category[]>([])
+  const [discounts, setDiscounts] = useState<Discount[]>([])
+  useEffect(() => {
+    api<Category[]>("GET", "/categories").then(setCategories)
+    api<Discount[]>("GET", "/discounts").then(setDiscounts)
+  }, [])
+
+  const active = pathname === "/" ? (params.get("categoria") ?? "") : null
+  return (
+    <nav className="catbar" aria-label="Categorías">
+      <Link to="/" aria-current={active === "" ? "page" : undefined}>
+        Todo
+      </Link>
+      {categories.map((c) => {
+        const pct = discountFor(discounts, c._id)
+        return (
+          <Link key={c._id} to={`/?categoria=${c._id}`} aria-current={active === c._id ? "page" : undefined}>
+            <span className="prefix">{prefixFor(c.name)}</span>
+            {c.name}
+            {pct > 0 && <span className="off">-{pct}%</span>}
+          </Link>
+        )
+      })}
+    </nav>
+  )
+}
+
 export default function App() {
-  const { user, logout, cart } = useSession()
+  const { user, cart } = useSession()
   const items = cart.reduce((sum, i) => sum + i.quantity, 0)
 
   return (
     <>
       <header>
         <div className="bar1">
-          <Link to="/" className="brand">
+          <Link to="/" className="brand" aria-label="Tienda de Informática, ir al catálogo">
             <ChipMark />
-            Tienda de Informática
+            <span className="wordmark" aria-hidden="true">
+              <small>Tienda de</small>
+              <b>Informática</b>
+            </span>
           </Link>
+          <SearchBox />
           <div className="account">
             {user ? (
-              <>
-                <span className="who">
-                  {user.name}
-                  {user.role === "admin" && " (administrador)"}
-                </span>
-                <button className="link" onClick={logout}>
-                  Salir
-                </button>
-              </>
+              <UserMenu />
             ) : (
               <>
                 <NavLink to="/login">Ingresar</NavLink>
@@ -66,29 +205,28 @@ export default function App() {
               </>
             )}
             {user?.role !== "admin" && (
-              <NavLink to="/carrito" className="cart-chip">
+              <NavLink to="/carrito" className="cart-chip" aria-label={`Carrito, ${items} ${items === 1 ? "producto" : "productos"}`}>
+                <Icon name="cart" />
                 Carrito <span className="pad-count">{items}</span>
               </NavLink>
             )}
           </div>
         </div>
-        <nav className="bar2" aria-label="Secciones">
-          <NavLink to="/" end>
-            Catálogo
-          </NavLink>
-          {user?.role !== "admin" && <NavLink to="/carrito">Carrito</NavLink>}
-          {user &&<NavLink to="/pedidos">{user.role === "admin" ? "Pedidos" : "Mis pedidos"}</NavLink>}
-          {user?.role === "admin" && <NavLink to="/admin">Administración</NavLink>}
-        </nav>
+        <CategoryBar />
       </header>
       <main>
         <Routes>
           <Route path="/" element={<Catalog />} />
-          <Route path="/productos/:id" element={<ProductDetail />} />
+          <Route path="/productos/:slug" element={<ProductDetail />} />
           <Route path="/carrito" element={<Cart />} />
           <Route path="/login" element={<Login />} />
           <Route path="/registro" element={<Register />} />
-          <Route path="/pedidos" element={<Private><MyOrders /></Private>} />
+          <Route path="/cuenta" element={<Private><Account /></Private>} />
+          {/* los pedidos del cliente viven en su cuenta; /pedidos queda para el listado completo del admin */}
+          <Route
+            path="/pedidos"
+            element={user?.role === "cliente" ? <Navigate to="/cuenta" replace /> : <Private admin><MyOrders /></Private>}
+          />
           <Route path="/pedidos/:id" element={<Private><OrderDetail /></Private>} />
           <Route path="/admin" element={<Private admin><Admin /></Private>} />
           <Route

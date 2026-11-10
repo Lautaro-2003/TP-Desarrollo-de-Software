@@ -6,6 +6,7 @@ import { ObjectId } from 'mongodb'
 const products = db.collection<Product>('products')
 
 await products.createIndex({ categoryId: 1 })
+await products.createIndex({ slug: 1 })
 
 export class ProductRepository implements Repository<Product> {
   public async findAll(filter?: { categoryId?: ObjectId }): Promise<Product[] | undefined> {
@@ -18,6 +19,10 @@ export class ProductRepository implements Repository<Product> {
   public async findOne(item: { id: string }): Promise<Product | undefined> {
     const _id = new ObjectId(item.id)
     return (await products.findOne({ _id })) || undefined
+  }
+
+  public async findBySlug(slug: string): Promise<Product | undefined> {
+    return (await products.findOne({ slug })) || undefined
   }
 
   public async add(item: Product): Promise<Product | undefined> {
