@@ -160,8 +160,17 @@ function CategoryBar() {
   }, [])
 
   const active = pathname === "/" ? (params.get("categoria") ?? "") : null
+  // en pantallas angostas la barra se desplaza sola hasta la categoría activa (solo en horizontal, sin mover la página)
+  const bar = useRef<HTMLElement>(null)
+  useEffect(() => {
+    const el = bar.current?.querySelector<HTMLElement>('[aria-current="page"]')
+    if (!bar.current || !el) return
+    const { left, right } = el.getBoundingClientRect()
+    const box = bar.current.getBoundingClientRect()
+    if (left < box.left || right > box.right) bar.current.scrollLeft += left - box.left - 16
+  }, [active, categories, discounts])
   return (
-    <nav className="catbar" aria-label="Categorías">
+    <nav className="catbar" aria-label="Categorías" ref={bar}>
       <Link to="/" aria-current={active === "" ? "page" : undefined}>
         Todo
       </Link>

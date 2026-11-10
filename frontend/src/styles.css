@@ -1243,6 +1243,14 @@ label.sort {
   max-width: 70ch;
 }
 
+.review-list .review-by {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 10px;
+  font-size: var(--fs-s);
+}
+
 .review-form {
   padding: 14px;
   border-top: 1px solid var(--line);
@@ -1344,13 +1352,16 @@ label.sort {
   background: var(--surface);
 }
 
-.status.pagado {
+/* el descuento vigente va en oro como su insignia en la tienda; el programado, en contorno verde; el vencido queda gris */
+.status.pagado,
+.status.vigente {
   border-color: var(--oro);
   background: var(--oro-tint);
   color: var(--ink);
 }
 
-.status.enviado {
+.status.enviado,
+.status.programado {
   border-color: var(--mask);
   color: var(--mask);
 }
@@ -1464,10 +1475,18 @@ label.sort {
   color: var(--ink);
 }
 
-.tabs button[aria-selected="true"] {
+.tabs button[aria-selected="true"],
+.tabs button[aria-pressed="true"] {
   color: var(--ink);
   font-weight: 600;
   box-shadow: inset 0 -3px 0 var(--oro);
+}
+
+/* cantidad de pedidos en cada estado del filtro */
+.tabs .count {
+  margin-left: 6px;
+  color: var(--muted);
+  font-size: var(--fs-s);
 }
 
 .admin-grid {

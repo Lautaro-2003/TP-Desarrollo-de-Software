@@ -416,6 +416,10 @@ describe("reseñas (Epic 3)", () => {
 
     const list = await api("GET", `/reviews?productId=${TECLADO}`, undefined, { token: null })
     assert.equal(list.body.data.length, 2)
+    // el autor se ve abreviado (nombre e inicial del apellido) y nunca con su email
+    assert.deepEqual(list.body.data.map((r: { author: string }) => r.author).sort(), ["Juan P.", "Luis"])
+    assert.ok(list.body.data.every((r: object) => !("email" in r)))
+    assert.equal((await api("GET", `/reviews/${luisReview._id}`, undefined, { token: null })).body.data.author, "Luis")
     assert.equal((await api("GET", "/reviews?productId=xx")).status, 400)
 
     const editLuis = (body: unknown, token = luisToken) => api("PATCH", `/reviews/${luisReview._id}`, body, { token })

@@ -7,8 +7,9 @@ import { Ref } from "./Catalog"
 
 const STEPS: OrderStatus[] = ["pendiente", "pagado", "enviado", "entregado"]
 const LABEL: Record<OrderStatus, string> = { pendiente: "Pendiente", pagado: "Pagado", enviado: "Enviado", entregado: "Entregado" }
+const PLURAL: Record<OrderStatus, string> = { pendiente: "Pendientes", pagado: "Pagados", enviado: "Enviados", entregado: "Entregados" }
 const NEXT: Partial<Record<OrderStatus, OrderStatus>> = { pendiente: "pagado", pagado: "enviado", enviado: "entregado" }
-const ACTION: Record<OrderStatus, string> = { pendiente: "", pagado: "Pagar", enviado: "Marcar enviado", entregado: "Marcar entregado" }
+const ACTION: Record<OrderStatus, string> = { pendiente: "", pagado: "Pagar", enviado: "Marcar como enviado", entregado: "Marcar como entregado" }
 
 // renglón del pedido: miniatura y nombre con enlace (un producto ya borrado queda solo con "…")
 function ItemName({ product }: { product?: Product }) {
@@ -47,8 +48,11 @@ export function MyOrders() {
   const { user } = useSession()
   const [orders, setOrders] = useState<Order[] | null>(null)
   const [users, setUsers] = useState<User[]>([])
+  // el admin filtra por estado para encontrar lo que le toca mover (pendientes por cobrar, pagados por enviar)
+  const [filter, setFilter] = useState<OrderStatus | "todos">("todos")
   const admin = user?.role === "admin"
   const Title = admin ? "h1" : "h2"
+  const shown = orders?.filter((o) => filter === "todos" || o.status === filter) ?? []
 
   useEffect(() => {
     api<Order[]>("GET", "/orders").then((list) => setOrders([...list].sort((a, b) => b.date.localeCompare(a.date))))
@@ -72,7 +76,20 @@ export function MyOrders() {
           )}
         </div>
       )}
-      {orders && orders.length > 0 && (
+      {admin && orders && orders.length > 0 && (
+        <div className="tabs" role="group" aria-label="Filtrar por estado">
+          {(["todos", ...STEPS] as const).map((s) => (
+            <button key={s} aria-pressed={filter === s} onClick={() => setFilter(s)}>
+              {s === "todos" ? "Todos" : PLURAL[s]}
+              <span className="count">{s === "todos" ? orders.length : orders.filter((o) => o.status === s).length}</span>
+            </button>
+          ))}
+        </div>
+      )}
+      {orders && orders.length > 0 && shown.length === 0 && filter !== "todos" && (
+        <p className="empty">No hay pedidos {PLURAL[filter].toLowerCase()}.</p>
+      )}
+      {shown.length > 0 && (
         <div className="table-wrap">
           <table>
             <thead>
@@ -87,7 +104,7 @@ export function MyOrders() {
               </tr>
             </thead>
             <tbody>
-              {orders.map((o) => (
+              {shown.map((o) => (
                 <tr key={o._id}>
                   <td>{date(o.date)}</td>
                   {admin && <td>{users.find((u) => u._id === o.userId)?.name ?? "…"}</td>}
@@ -114,7 +131,8 @@ export function OrderDetail() {
   const navigate = useNavigate()
   // el checkout llega con created: se avisa que el pedido falta pagarlo
   const created = (useLocation().state as { created?: boolean } | null)?.created
-  const back = user?.role === "admin" ? { to: "/pedidos", label: "Pedidos" } : { to: "/cuenta", label: "Mi cuenta" }
+  const admin = user?.role === "admin"
+  const back = admin ? { to: "/pedidos", label: "Pedidos" } : { to: "/cuenta", label: "Mi cuenta" }
   const [order, setOrder] = useState<Order | null>(null)
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
@@ -151,8 +169,19 @@ export function OrderDetail() {
   if (!order) return error ? <p className="error">{error}</p> : <p className="muted">Cargando…</p>
   const next = NEXT[order.status]
   // pagar lo puede hacer el dueño; enviar y entregar solo el admin (el backend vuelve a validarlo)
-  const canAdvance = next && (next === "pagado" || user?.role === "admin")
+  const canAdvance = next && (next === "pagado" || admin)
+  // el admin no paga: registra un pago que entró por afuera (transferencia, efectivo)
+  const actionLabel = next === "pagado" && admin ? "Marcar como pagado" : next && ACTION[next]
   const refs = designators(products, categories)
+
+  // pagar descuenta stock y el pedido ya no se puede cancelar: se confirma antes
+  function advance(status: OrderStatus) {
+    const question = admin
+      ? "¿Marcar como pagado? Hacelo solo si el pago ya entró: se descuenta el stock y no se puede deshacer."
+      : `¿Pagar ${money(order!.total)}? Después ya no vas a poder cancelar el pedido.`
+    if (status === "pagado" && !confirm(question)) return
+    run(() => api("PATCH", `/orders/${order!._id}/status`, { status }).then(load))
+  }
 
   return (
     <>
@@ -226,13 +255,12 @@ export function OrderDetail() {
             {next && !canAdvance && <p className="muted small">El envío y la entrega los marca la tienda.</p>}
             {order.status === "pendiente" && (
               <p className={created ? "notice" : "muted small"} role={created ? "status" : undefined}>
-                {created && "Pedido creado. "}Falta pagarlo: el stock se reserva recién al pagar.
+                {created && "Pedido creado. "}
+                {admin ? "El cliente todavía no lo pagó" : "Falta pagarlo"}: el stock se reserva recién al pagar.
               </p>
             )}
             {error && <p className="error">{error}</p>}
-            {canAdvance && (
-              <button onClick={() => run(() => api("PATCH", `/orders/${order._id}/status`, { status: next }).then(load))}>{ACTION[next]}</button>
-            )}
+            {canAdvance && <button onClick={() => advance(next)}>{actionLabel}</button>}
             {order.status === "pendiente" && (
               <button
                 className="secondary"

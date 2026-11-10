@@ -35,16 +35,33 @@ function validateContent(input: Record<string, unknown>): string | null {
   return null
 }
 
+// "María Gómez" → "María G.": la tienda muestra quién opinó sin exponer el nombre completo ni el email
+function shortName(name: string) {
+  const [first, ...rest] = name.trim().split(/\s+/)
+  const last = rest[rest.length - 1]
+  return last ? `${first} ${last[0]}.` : first
+}
+
+// suma a cada reseña el nombre abreviado de su autor (un usuario ya borrado queda como "Cliente")
+async function withAuthors(list: Review[]) {
+  const users = await db
+    .collection("users")
+    .find({ _id: { $in: list.map((r) => r.userId) } }, { projection: { name: 1 } })
+    .toArray()
+  const names = new Map(users.map((u) => [u._id.toString(), shortName(u.name)]))
+  return list.map((r) => ({ ...r, author: names.get(r.userId.toString()) ?? "Cliente" }))
+}
+
 async function findAll(req: Request, res: Response) {
   const productIdParam = req.query.productId
   if (productIdParam === undefined) {
-    return res.json({ data: await repository.findAll() })
+    return res.json({ data: await withAuthors((await repository.findAll()) ?? []) })
   }
   const productId = parseObjectId(productIdParam)
   if (!productId) {
     return res.status(400).send({ message: "productId inválido" })
   }
-  return res.json({ data: await repository.findAll({ productId }) })
+  return res.json({ data: await withAuthors((await repository.findAll({ productId })) ?? []) })
 }
 
 async function findOne(req: Request, res: Response) {
@@ -56,7 +73,7 @@ async function findOne(req: Request, res: Response) {
   if (!review) {
     return res.status(404).send({ message: "Reseña no encontrada" })
   }
-  res.json({ data: review })
+  res.json({ data: (await withAuthors([review]))[0] })
 }
 
 async function add(req: Request, res: Response) {

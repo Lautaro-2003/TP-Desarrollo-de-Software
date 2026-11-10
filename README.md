@@ -67,7 +67,7 @@ RAMAS: el desarrollo se hace en la rama `Desarrollo`; `main` recibe un único me
 
 1. `npm install` y `npm install --prefix frontend`
 2. Copiar `.env.example` a `.env` y completar `MONGODB_URI` con la cadena de conexión de Atlas y `JWT_SECRET` con un secreto largo y aleatorio. Si aparece `querySrv ECONNREFUSED`, descomentar `DNS_SERVERS`.
-3. `npm run seed`: carga los datos de la demo (4 categorías, 8 productos con foto ilustrativa de Unsplash, clientes, pedidos en todos los estados, reseñas y un descuento vigente en Almacenamiento). En una base ya cargada, volver a correrlo agrega a los productos del demo su slug (la URL legible, ej. `/productos/rtx-4070`) y su foto, sin tocar el resto
+3. `npm run seed`: carga los datos de la demo: 6 categorías, 25 productos con foto ilustrativa de Unsplash, 7 clientes, 17 pedidos en todos los estados (dos pendientes con ítems, para que el admin los marque como pagados), 27 reseñas y 5 descuentos (3 vigentes, uno vencido y uno programado). En una base ya cargada, volver a correrlo agrega lo que falte y actualiza el slug (la URL legible, ej. `/productos/rtx-4070`) y la foto de los productos del demo, sin tocar el resto
 4. `npm run start:dev`: levanta la API en `http://localhost:3000/api`
 5. En otra terminal, `npm run dev --prefix frontend`: levanta la tienda en `http://localhost:5173` (Vite redirige `/api` al backend)
 
@@ -79,12 +79,13 @@ Usuarios de prueba del seed:
 | Cliente | `juan.perez@mail.com` | `cliente1234` |
 | Cliente (con compras y reseñas) | `maria.gomez@mail.com` | `cliente1234` |
 | Cliente (con compras y reseñas) | `lucia.fernandez@mail.com` | `cliente1234` |
+| Clientes (con compras y reseñas) | `martin.rodriguez@mail.com`, `valentina.lopez@mail.com`, `tomas.benitez@mail.com`, `camila.ruiz@mail.com` | `cliente1234` |
 
 ## Roles y permisos
 
 - **Sin sesión**: ver el catálogo (categorías, productos, descuentos) y las reseñas; registrarse.
 - **Cliente**: comprar con el checkout, ver, pagar y cancelar sus pedidos, reseñar productos que compró y modificar su propio usuario. El `userId` de pedidos y reseñas sale del token: no se puede comprar ni reseñar en nombre de otro.
-- **Administrador**: ABM de categorías, productos, descuentos y usuarios; ver todos los pedidos, enviarlos y entregarlos; gestionar ítems de pedido sueltos; borrar reseñas (moderación).
+- **Administrador**: ABM de categorías, productos, descuentos y usuarios; ver todos los pedidos (con filtro por estado), marcar como pagado un pedido cuyo pago entró por afuera, enviarlo y entregarlo; gestionar ítems de pedido sueltos; borrar reseñas (moderación).
 
 ## Pruebas
 
@@ -104,5 +105,5 @@ Las rutas marcadas con 🔒 requieren el header `Authorization: Bearer <token>`.
 | Pedidos | `/api/orders` | 🔒 el cliente ve solo los suyos; el admin filtra con `?userId=`; el detalle (`GET /:id`) incluye los ítems; solo se modifica/borra un pedido pendiente |
 | Checkout | `POST /api/orders/checkout` | 🔒 Recibe `{ items: [{ productId, quantity }] }`, valida stock, aplica descuentos vigentes y crea el pedido con sus ítems |
 | Estado del pedido | `PATCH /api/orders/:id/status` | 🔒 Avanza un paso: pendiente → pagado (dueño o admin) → enviado → entregado (admin); al pagar descuenta el stock en una transacción |
-| Reseñas | `/api/reviews` | Leer es público; escribir 🔒; solo reseña quien compró (pedido pagado o posterior); una por usuario y producto; el promedio queda en `rating` del producto |
+| Reseñas | `/api/reviews` | Leer es público; escribir 🔒; solo reseña quien compró (pedido pagado o posterior); una por usuario y producto; cada reseña trae `author` abreviado (ej. "María G."); el promedio queda en `rating` del producto |
 | Ítems de pedido | `/api/order-items` | 🔒 solo admin; el precio lo pone el servidor; recalculan el total del pedido |
