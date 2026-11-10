@@ -3,7 +3,9 @@
 import { ObjectId } from "mongodb"
 import { db } from "./conn.js"
 import { hashPassword } from "../../auth/auth.js"
+import { applyDiscount } from "../../discount/discount.Repository.js"
 import { ReviewRepository } from "../../review/review.Repository.js"
+import { roundCents } from "../money.js"
 import { slugify } from "../slug.js"
 import { unsplash } from "./unsplash.js"
 
@@ -112,22 +114,57 @@ const cliente = async (name: string, email: string, address: string) => ({
 })
 await upsert("users", MARIA, await cliente("María Gómez", "maria.gomez@mail.com", "Córdoba 1500, Rosario"))
 await upsert("users", LUCIA, await cliente("Lucía Fernández", "lucia.fernandez@mail.com", "Mitre 820, Rosario"))
+const MARTIN = id(303)
+const VALENTINA = id(304)
+const TOMAS = id(305)
+const CAMILA = id(306)
+await upsert("users", MARTIN, await cliente("Martín Rodríguez", "martin.rodriguez@mail.com", "San Martín 1020, Rosario"))
+await upsert("users", VALENTINA, await cliente("Valentina López", "valentina.lopez@mail.com", "Oroño 455, Rosario"))
+await upsert("users", TOMAS, await cliente("Tomás Benítez", "tomas.benitez@mail.com", "Rioja 2210, Rosario"))
+await upsert("users", CAMILA, await cliente("Camila Ruiz", "camila.ruiz@mail.com", "Bv. Avellaneda 1300, Rosario"))
 
-// pedidos ya pagados en distintos estados; el precio unitario quedó congelado al comprar
-type Line = [productId: ObjectId, quantity: number, unitPrice: number]
+// mismo criterio que el checkout: el mayor descuento vigente de la categoría en la fecha del pedido
+function unitPrice(productId: ObjectId, date: Date) {
+  const { price, categoryId } = catalog.get(productId.toString())!
+  const percentage = discounts
+    .filter(([, category, , start, end]) => category.equals(categoryId) && new Date(start) <= date && date < new Date(end))
+    .reduce((best, [, , p]) => Math.max(best, p), 0)
+  return applyDiscount(price, percentage)
+}
+
+// pedidos en todos los estados; el precio unitario queda congelado con el descuento de la fecha del pedido.
+// Los ítems toman ids correlativos: un pedido nuevo va siempre al final, nunca entre los que ya están
+type Line = [productId: ObjectId, quantity: number]
 let itemId = 500
 async function order(_id: ObjectId, userId: ObjectId, date: string, status: string, lines: Line[]) {
-  const items = lines.map(([productId, quantity, unitPrice]) => ({ productId, quantity, unitPrice, subtotal: Math.round(quantity * unitPrice * 100) / 100 }))
-  const total = Math.round(items.reduce((sum, i) => sum + i.subtotal, 0) * 100) / 100
-  await upsert("orders", _id, { userId, date: new Date(date), status, total })
+  const when = new Date(date)
+  const items = lines.map(([productId, quantity]) => {
+    const price = unitPrice(productId, when)
+    return { productId, quantity, unitPrice: price, subtotal: roundCents(quantity * price) }
+  })
+  const total = roundCents(items.reduce((sum, i) => sum + i.subtotal, 0))
+  await upsert("orders", _id, { userId, date: when, status, total })
   for (const item of items) await upsert("orderItems", id(itemId++), { ...item, orderId: _id })
 }
-await order(id(401), MARIA, "2026-10-05T15:00:00Z", "entregado", [[SSD, 2, 85], [MOUSE, 1, 45]])
-await order(id(402), LUCIA, "2026-10-12T18:30:00Z", "entregado", [[MONITOR, 1, 320], [TECLADO, 1, 120]])
-await order(id(403), MARIA, "2026-11-03T12:10:00Z", "pagado", [[RX, 1, 650], [AURICULARES, 1, 90]])
-await order(id(404), LUCIA, "2026-11-04T20:45:00Z", "enviado", [[SSD, 1, 72.25], [HDD, 1, 51]]) // con el 15% de descuento
+await order(id(401), MARIA, "2026-10-05T15:00:00Z", "entregado", [[SSD, 2], [MOUSE, 1]])
+await order(id(402), LUCIA, "2026-10-12T18:30:00Z", "entregado", [[MONITOR, 1], [TECLADO, 1]])
+await order(id(403), MARIA, "2026-11-03T12:10:00Z", "pagado", [[RX, 1], [AURICULARES, 1]])
+await order(id(404), LUCIA, "2026-11-04T20:45:00Z", "enviado", [[SSD, 1], [HDD, 1]]) // con el 15% de Almacenamiento
+await order(id(405), MARTIN, "2026-09-14T16:20:00Z", "entregado", [[MONITOR, 1], [RTX, 1], [TECLADO, 1]]) // monitor con el 25% vencido
+await order(id(406), VALENTINA, "2026-09-20T11:05:00Z", "entregado", [[MONITOR_CURVO, 1], [MOUSE, 1], [AURICULARES, 1]])
+await order(id(407), TOMAS, "2026-10-02T19:40:00Z", "entregado", [[CORE_I5, 1], [DDR4_16, 1], [SSD, 1], [RTX_4060_TI, 1]])
+await order(id(408), CAMILA, "2026-10-08T14:15:00Z", "entregado", [[WEBCAM, 1], [AURICULARES, 1], [MOUSEPAD, 1]])
+await order(id(409), MARTIN, "2026-10-18T21:00:00Z", "entregado", [[DDR5_32, 1], [CORE_I9, 1], [SSD_2TB, 1]])
+await order(id(410), VALENTINA, "2026-10-25T10:30:00Z", "entregado", [[MONITOR_24, 2], [WEBCAM, 1]])
+await order(id(411), TOMAS, "2026-10-30T17:45:00Z", "entregado", [[DISCO_EXTERNO, 1], [HDD, 1], [MOUSEPAD, 1]])
+await order(id(412), CAMILA, "2026-11-02T13:25:00Z", "pagado", [[SSD_2TB, 1], [CORE_I3, 1], [DDR4_8, 2]])
+await order(id(413), MARIA, "2026-11-08T15:10:00Z", "enviado", [[RTX_4090, 1], [MOUSEPAD, 1]])
+await order(id(414), LUCIA, "2026-11-09T09:50:00Z", "pagado", [[CORE_I5, 1], [DDR5_32, 1]])
+// pendientes con ítems: para mostrar el "Marcar como pagado" del admin
+await order(id(415), MARTIN, "2026-11-10T12:00:00Z", "pendiente", [[MONITOR_4K, 1], [MOUSE, 1]])
+await order(id(416), VALENTINA, "2026-11-10T12:30:00Z", "pendiente", [[RYZEN_7, 1], [DDR5_16, 2]])
 
-// reseñas solo de productos que cada clienta compró (misma regla que la API)
+// reseñas de pedidos ya entregados; notas variadas para que "Mejor calificados" ordene de verdad
 type ReviewSeed = [n: number, userId: ObjectId, productId: ObjectId, rating: number, comment: string, date: string]
 const reviews: ReviewSeed[] = [
   [601, MARIA, SSD, 5, "Rapidísimo, lo instalé en diez minutos y la PC arranca al toque.", "2026-10-10"],
@@ -136,13 +173,36 @@ const reviews: ReviewSeed[] = [
   [604, LUCIA, MONITOR, 5, "Colores muy buenos y los 144 Hz se notan.", "2026-10-20"],
   [605, LUCIA, TECLADO, 4, "Muy buen teclado, un poco ruidoso para la oficina.", "2026-10-21"],
   [606, LUCIA, SSD, 4, "Buena velocidad por el precio.", "2026-11-05"],
+  [607, MARTIN, MONITOR, 4, "Muy buena imagen. El pie podría ser más firme.", "2026-09-25"],
+  [608, MARTIN, RTX, 5, "Excelente en 1440p y casi no hace ruido.", "2026-09-26"],
+  [609, MARTIN, TECLADO, 3, "Buen tacto, pero la retroiluminación tiene pocos modos.", "2026-09-26"],
+  [610, VALENTINA, MONITOR_CURVO, 5, "Para trabajar con muchas ventanas a la vez es otro mundo.", "2026-10-01"],
+  [611, VALENTINA, MOUSE, 4, "Liviano y preciso, aunque el clic es algo ruidoso.", "2026-10-01"],
+  [612, VALENTINA, AURICULARES, 3, "Se escuchan bien, pero después de un par de horas aprietan.", "2026-10-02"],
+  [613, TOMAS, CORE_I5, 5, "Rinde muchísimo por lo que sale.", "2026-10-12"],
+  [614, TOMAS, DDR4_16, 4, "Anduvo a 3200 apenas activé el perfil XMP.", "2026-10-12"],
+  [615, TOMAS, SSD, 5, "Windows arranca en segundos.", "2026-10-13"],
+  [616, TOMAS, RTX_4060_TI, 4, "Muy buena para 1080p; en 1440p hay que bajar algunos detalles.", "2026-10-14"],
+  [617, CAMILA, WEBCAM, 5, "Imagen nítida incluso con poca luz. La uso para dar clases.", "2026-10-15"],
+  [618, CAMILA, AURICULARES, 4, "Buen micrófono, en las llamadas me escuchan clarito.", "2026-10-15"],
+  [619, CAMILA, MOUSEPAD, 2, "Es más chico de lo que esperaba y se marcó enseguida.", "2026-10-16"],
+  [620, MARTIN, DDR5_32, 5, "Se instaló sin vueltas y anda a 6000 desde el primer día.", "2026-10-28"],
+  [621, MARTIN, CORE_I9, 4, "Una bestia, pero pide una buena refrigeración líquida.", "2026-10-28"],
+  [622, MARTIN, SSD_2TB, 5, "Las velocidades reales están muy cerca de las anunciadas.", "2026-10-29"],
+  [623, VALENTINA, MONITOR_24, 4, "Los 165 Hz se sienten; los colores de fábrica vienen algo fríos.", "2026-11-02"],
+  [624, VALENTINA, WEBCAM, 4, "Buena calidad y el clip se adapta a cualquier monitor.", "2026-11-02"],
+  [625, TOMAS, DISCO_EXTERNO, 4, "Práctico para respaldos, aunque el cable es corto.", "2026-11-06"],
+  [626, TOMAS, HDD, 3, "Hace algo de ruido al arrancar, pero para guardar fotos cumple.", "2026-11-06"],
+  [627, TOMAS, MOUSEPAD, 4, "Cumple: la base no se mueve del escritorio.", "2026-11-07"],
 ]
+// misma regla que la API: si una reseña no tiene compra detrás, el seed corta antes de cargarla
+const repository = new ReviewRepository()
 for (const [n, userId, productId, rating, comment, date] of reviews) {
+  if (!(await repository.hasPurchased(userId, productId))) throw new Error(`La reseña ${n} es de alguien que no compró el producto`)
   await upsert("reviews", id(n), { userId, productId, rating, comment, date: new Date(date) })
 }
 
 // el promedio de cada producto se calcula igual que en la API
-const repository = new ReviewRepository()
 for (const productId of new Set(reviews.map((r) => r[2]))) await repository.recalculateProductRating(productId)
 
 process.exit(0)
