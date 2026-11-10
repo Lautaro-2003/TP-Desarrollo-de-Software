@@ -47,6 +47,13 @@ const SECTIONS: { title: string; singular: string; path: string; fields: Field[]
 
 type Row = Record<string, unknown> & { _id: string }
 
+// estado de un descuento con el mismo criterio que la tienda: rige desde startDate inclusive hasta endDate exclusivo
+function discountPhase(row: Row, now = new Date()) {
+  if (now < new Date(String(row.startDate))) return { key: "programado", label: "Programado" }
+  if (now < new Date(String(row.endDate))) return { key: "vigente", label: "Vigente" }
+  return { key: "vencido", label: "Vencido" }
+}
+
 // un mismo componente sirve para los tres ABM: lista, alta, modificación y baja contra la API
 function CrudSection({ singular, path, fields, categories }: (typeof SECTIONS)[number] & { categories: Category[] }) {
   const [rows, setRows] = useState<Row[]>([])
@@ -69,6 +76,7 @@ function CrudSection({ singular, path, fields, categories }: (typeof SECTIONS)[n
     return f.key === "status" ? text.charAt(0).toUpperCase() + text.slice(1) : text
   }
   const refs = path === "/products" ? designators(rows as unknown as Product[], categories) : null
+  const phases = path === "/discounts"
   const columns = fields.filter((f) => f.type !== "image")
   const statuses = [...new Set(rows.map((r) => String(r.status ?? "")).filter(Boolean))]
 
@@ -120,6 +128,7 @@ function CrudSection({ singular, path, fields, categories }: (typeof SECTIONS)[n
                   {f.label}
                 </th>
               ))}
+              {phases && <th>Estado</th>}
               <th>
                 <span className="sr-only">Acciones</span>
               </th>
@@ -139,6 +148,11 @@ function CrudSection({ singular, path, fields, categories }: (typeof SECTIONS)[n
                     {show(f, row[f.key])}
                   </td>
                 ))}
+                {phases && (
+                  <td>
+                    <span className={`status ${discountPhase(row).key}`}>{discountPhase(row).label}</span>
+                  </td>
+                )}
                 <td className="actions">
                   <button className="link" onClick={() => edit(row)}>
                     Editar

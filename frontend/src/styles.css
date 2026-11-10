@@ -1352,13 +1352,16 @@ label.sort {
   background: var(--surface);
 }
 
-.status.pagado {
+/* el descuento vigente va en oro como su insignia en la tienda; el programado, en contorno verde; el vencido queda gris */
+.status.pagado,
+.status.vigente {
   border-color: var(--oro);
   background: var(--oro-tint);
   color: var(--ink);
 }
 
-.status.enviado {
+.status.enviado,
+.status.programado {
   border-color: var(--mask);
   color: var(--mask);
 }
