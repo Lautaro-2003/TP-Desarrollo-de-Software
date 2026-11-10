@@ -8,8 +8,8 @@ const users = db.collection<User>('users')
 // el email identifica al usuario: no puede repetirse
 await users.createIndex({ email: 1 }, { unique: true })
 
-// el hash de la contraseña nunca sale del repositorio (salvo para el login)
-const hidePassword = { projection: { passwordHash: 0 } }
+// el hash de la contraseña y el token de confirmación nunca salen del repositorio (salvo para el login)
+const hidePassword = { projection: { passwordHash: 0, emailToken: 0 } }
 
 export class UserRepository implements Repository<User> {
   public async findAll(): Promise<User[] | undefined> {
@@ -32,8 +32,19 @@ export class UserRepository implements Repository<User> {
 
   public async add(item: User): Promise<User | undefined> {
     item._id = (await users.insertOne(item)).insertedId
-    const { passwordHash, ...user } = item
+    const { passwordHash, emailToken, ...user } = item
     return user as User
+  }
+
+  // marca el email como confirmado y borra el token para que el link no sirva dos veces
+  public async confirmEmail(token: string): Promise<User | undefined> {
+    return (
+      (await users.findOneAndUpdate(
+        { emailToken: token },
+        { $set: { emailConfirmed: true }, $unset: { emailToken: "" } },
+        { returnDocument: 'after', ...hidePassword }
+      )) || undefined
+    )
   }
 
   public async update(id: string, item: User): Promise<User | undefined> {
