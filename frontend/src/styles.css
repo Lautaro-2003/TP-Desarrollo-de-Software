@@ -157,10 +157,6 @@ a:hover {
   text-decoration: none;
 }
 
-.who {
-  color: var(--silk-dim);
-}
-
 .cart-chip {
   display: inline-flex;
   align-items: center;
@@ -186,35 +182,79 @@ a:hover {
   text-align: center;
 }
 
-.bar2 {
-  display: flex;
-  overflow-x: auto;
-  background: var(--mask-tint);
-  border-bottom: 1px solid var(--line);
-  padding: 0 24px;
+/* menú del usuario: el nombre abre una lista con su cuenta, las vistas del admin y salir */
+.user-menu {
+  position: relative;
 }
 
-.bar2 a {
-  padding: 9px 16px;
-  color: var(--ink);
-  text-decoration: none;
+.user-menu > button.who {
+  padding: 6px 4px;
+  border: 0;
+  background: none;
+  color: var(--silk);
   font-weight: 500;
-  white-space: nowrap;
-  border-right: 1px solid var(--line);
 }
 
-.bar2 a:first-child {
-  border-left: 1px solid var(--line);
+.user-menu > button.who:hover,
+.user-menu > button.who[aria-expanded="true"] {
+  background: none;
+  color: #fff;
+  text-decoration: underline;
 }
 
-.bar2 a:hover {
+.user-menu > button.who svg {
+  width: 10px;
+  height: 10px;
+}
+
+.user-menu ul {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 20;
+  min-width: 210px;
+  margin: 0;
+  padding: 4px 0;
+  list-style: none;
   background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-top: 3px solid var(--oro);
+  border-radius: 3px;
+  box-shadow: 0 6px 18px rgb(0 0 0 / 0.18);
 }
 
-.bar2 a.active {
-  background: var(--surface);
-  font-weight: 600;
-  box-shadow: inset 0 3px 0 var(--oro);
+.user-menu li a,
+.user-menu li button {
+  display: block;
+  width: 100%;
+  padding: 9px 14px;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--ink);
+  font-weight: 500;
+  text-align: left;
+  text-decoration: none;
+}
+
+.user-menu li a:hover,
+.user-menu li button:hover {
+  background: var(--mask-tint);
+  color: var(--ink);
+}
+
+.user-menu li:last-child {
+  border-top: 1px solid var(--line);
+  margin-top: 4px;
+  padding-top: 4px;
+}
+
+.user-menu :focus-visible {
+  outline-color: var(--mask);
+}
+
+.user-menu > button.who:focus-visible {
+  outline-color: var(--oro-claro);
 }
 
 main {
@@ -990,6 +1030,31 @@ th[aria-sort="descending"] {
   width: 100%;
 }
 
+.notice {
+  padding: 8px 12px;
+  border-left: 3px solid var(--oro);
+  border-radius: 3px;
+  background: var(--oro-tint);
+}
+
+/* ---------- cuenta ---------- */
+
+.profile {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 6px 20px;
+  margin: 0;
+}
+
+.profile dt {
+  color: var(--muted);
+}
+
+.profile dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
 /* ---------- pedidos ---------- */
 
 .status {
@@ -1193,8 +1258,7 @@ th[aria-sort="descending"] {
 }
 
 @media (max-width: 640px) {
-  .bar1,
-  .bar2 {
+  .bar1 {
     padding-left: 16px;
     padding-right: 16px;
   }
@@ -1205,6 +1269,12 @@ th[aria-sort="descending"] {
 
   .account {
     margin-left: 0;
+  }
+
+  /* en celular el nombre queda a la izquierda: el menú se abre hacia la derecha */
+  .user-menu ul {
+    left: 0;
+    right: auto;
   }
 
   /* la tabla de productos se apila en filas de dos líneas */

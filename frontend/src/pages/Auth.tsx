@@ -1,11 +1,16 @@
 import { FormEvent, useState } from "react"
-import { Link, useNavigate } from "react-router"
+import { Link, Navigate, useLocation } from "react-router"
 import { api, ApiError } from "../api"
 import { useSession } from "../session"
 
+// a dónde volver al ingresar: la página que mandó al login (ej. el carrito) o el catálogo
+function useReturnTo() {
+  return (useLocation().state as { from?: string } | null)?.from ?? "/"
+}
+
 export function Login() {
-  const { login } = useSession()
-  const navigate = useNavigate()
+  const { user, login } = useSession()
+  const from = useReturnTo()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
@@ -15,11 +20,13 @@ export function Login() {
     setError("")
     try {
       await login(email, password)
-      navigate("/")
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "No se pudo iniciar sesión")
     }
   }
+
+  // con sesión iniciada (o recién iniciada) no tiene sentido el formulario
+  if (user) return <Navigate to={from} replace />
 
   return (
     <section className="module auth">
@@ -38,7 +45,10 @@ export function Login() {
         {error && <p className="error">{error}</p>}
         <button type="submit">Ingresar</button>
         <p className="muted">
-          ¿No tenés cuenta? <Link to="/registro">Creá una</Link>
+          ¿No tenés cuenta?{" "}
+          <Link to="/registro" state={{ from }}>
+            Creá una
+          </Link>
         </p>
       </form>
     </section>
@@ -46,8 +56,8 @@ export function Login() {
 }
 
 export function Register() {
-  const { login } = useSession()
-  const navigate = useNavigate()
+  const { user, login } = useSession()
+  const from = useReturnTo()
   const [form, setForm] = useState({ name: "", email: "", address: "", password: "" })
   const [error, setError] = useState("")
   const field = (key: keyof typeof form) => ({
@@ -62,11 +72,12 @@ export function Register() {
     try {
       await api("POST", "/auth/register", form)
       await login(form.email, form.password)
-      navigate("/")
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "No se pudo crear la cuenta")
     }
   }
+
+  if (user) return <Navigate to={from} replace />
 
   return (
     <section className="module auth">
@@ -93,7 +104,10 @@ export function Register() {
         {error && <p className="error">{error}</p>}
         <button type="submit">Crear cuenta</button>
         <p className="muted">
-          ¿Ya tenés cuenta? <Link to="/login">Ingresá</Link>
+          ¿Ya tenés cuenta?{" "}
+          <Link to="/login" state={{ from }}>
+            Ingresá
+          </Link>
         </p>
       </form>
     </section>

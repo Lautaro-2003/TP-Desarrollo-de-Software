@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { Link, useNavigate, useParams } from "react-router"
+import { Link, useLocation, useNavigate, useParams } from "react-router"
 import { api, ApiError, Category, Order, OrderStatus, Product, User, date, designators, money } from "../api"
 import { useSession } from "../session"
 import { Ref } from "./Catalog"
@@ -28,12 +28,13 @@ function Trace({ status }: { status: OrderStatus }) {
   )
 }
 
-// el cliente ve solo sus pedidos (lo filtra el backend); el admin ve todos con el nombre del comprador
+// el cliente ve solo sus pedidos (lo filtra el backend) dentro de su cuenta; el admin ve todos con el nombre del comprador
 export function MyOrders() {
   const { user } = useSession()
   const [orders, setOrders] = useState<Order[] | null>(null)
   const [users, setUsers] = useState<User[]>([])
   const admin = user?.role === "admin"
+  const Title = admin ? "h1" : "h2"
 
   useEffect(() => {
     api<Order[]>("GET", "/orders").then((list) => setOrders([...list].sort((a, b) => b.date.localeCompare(a.date))))
@@ -43,7 +44,7 @@ export function MyOrders() {
   return (
     <section className="module contained">
       <div className="module-head">
-        <h1>{admin ? "Pedidos" : "Mis pedidos"}</h1>
+        <Title>{admin ? "Pedidos" : "Mis pedidos"}</Title>
         {orders && <span className="meta">{orders.length === 1 ? "1 pedido" : `${orders.length} pedidos`}</span>}
       </div>
       {orders === null && <p className="empty">Cargando…</p>}
@@ -81,7 +82,7 @@ export function MyOrders() {
                   </td>
                   <td className="n price">{money(o.total)}</td>
                   <td className="n">
-                    <Link to={`/pedidos/${o._id}`}>Ver detalle</Link>
+                    <Link to={`/pedidos/${o._id}`}>{!admin && o.status === "pendiente" ? "Pagar o cancelar" : "Ver detalle"}</Link>
                   </td>
                 </tr>
               ))}
@@ -97,6 +98,9 @@ export function OrderDetail() {
   const { id } = useParams()
   const { user } = useSession()
   const navigate = useNavigate()
+  // el checkout llega con created: se avisa que el pedido falta pagarlo
+  const created = (useLocation().state as { created?: boolean } | null)?.created
+  const back = user?.role === "admin" ? { to: "/pedidos", label: "Pedidos" } : { to: "/cuenta", label: "Mi cuenta" }
   const [order, setOrder] = useState<Order | null>(null)
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
@@ -114,8 +118,20 @@ export function OrderDetail() {
     try {
       await action()
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "No se pudo completar la acción")
+      setError(await describe(err))
     }
+  }
+
+  // si el pago falla por stock, se nombra el producto con su stock actual y se dice cómo seguir
+  async function describe(err: unknown) {
+    if (!(err instanceof ApiError)) return "No se pudo completar la acción"
+    const productId = (err.data as { productId?: string } | undefined)?.productId
+    if (!productId) return err.message
+    const fresh = await api<Product[]>("GET", "/products")
+    setProducts(fresh)
+    const p = fresh.find((x) => x._id === productId)
+    const what = p ? `${p.name} (quedan ${p.stock})` : "un producto del pedido"
+    return `No alcanza el stock de ${what}. Cancelá este pedido y armá uno nuevo con lo disponible.`
   }
 
   if (!order) return error ? <p className="error">{error}</p> : <p className="muted">Cargando…</p>
@@ -129,7 +145,7 @@ export function OrderDetail() {
       <nav className="crumbs" aria-label="Ubicación">
         <ol>
           <li>
-            <Link to="/pedidos">{user?.role === "admin" ? "Pedidos" : "Mis pedidos"}</Link>
+            <Link to={back.to}>{back.label}</Link>
           </li>
           <li aria-current="page">Pedido del {date(order.date)}</li>
         </ol>
@@ -192,12 +208,23 @@ export function OrderDetail() {
               <dd className="grand">{money(order.total)}</dd>
             </dl>
             {next && !canAdvance && <p className="muted small">El envío y la entrega los marca la tienda.</p>}
+            {order.status === "pendiente" && (
+              <p className={created ? "notice" : "muted small"} role={created ? "status" : undefined}>
+                {created && "Pedido creado. "}Falta pagarlo: el stock se reserva recién al pagar.
+              </p>
+            )}
             {error && <p className="error">{error}</p>}
             {canAdvance && (
               <button onClick={() => run(() => api("PATCH", `/orders/${order._id}/status`, { status: next }).then(load))}>{ACTION[next]}</button>
             )}
             {order.status === "pendiente" && (
-              <button className="secondary" onClick={() => run(() => api("DELETE", `/orders/${order._id}`).then(() => navigate("/pedidos")))}>
+              <button
+                className="secondary"
+                onClick={() =>
+                  confirm("¿Cancelar este pedido? Se elimina y no se puede deshacer.") &&
+                  run(() => api("DELETE", `/orders/${order._id}`).then(() => navigate(back.to)))
+                }
+              >
                 Cancelar pedido
               </button>
             )}

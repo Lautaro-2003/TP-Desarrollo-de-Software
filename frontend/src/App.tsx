@@ -1,18 +1,20 @@
-import { Link, NavLink, Navigate, Route, Routes } from "react-router"
-import { ReactNode } from "react"
+import { Link, NavLink, Navigate, Route, Routes, useLocation, useNavigate } from "react-router"
+import { ReactNode, useEffect, useRef, useState } from "react"
 import { useSession } from "./session"
 import Catalog from "./pages/Catalog"
 import ProductDetail from "./pages/ProductDetail"
 import Cart from "./pages/Cart"
 import { Login, Register } from "./pages/Auth"
 import { MyOrders, OrderDetail } from "./pages/Orders"
+import Account from "./pages/Account"
 import Admin from "./pages/Admin"
 
-// protege una vista: sin sesión manda al login; con rol equivocado, al catálogo
+// protege una vista: sin sesión manda al login (y vuelve acá al ingresar); con rol equivocado, al catálogo
 function Private({ children, admin = false }: { children: ReactNode; admin?: boolean }) {
   const { user, loading } = useSession()
+  const { pathname } = useLocation()
   if (loading) return <p className="muted">Cargando…</p>
-  if (!user) return <Navigate to="/login" replace />
+  if (!user) return <Navigate to="/login" replace state={{ from: pathname }} />
   if (admin && user.role !== "admin") return <Navigate to="/" replace />
   return children
 }
@@ -36,8 +38,76 @@ function ChipMark() {
   )
 }
 
+// el nombre del usuario abre su menú: cuenta (con sus pedidos), las vistas del admin y salir
+function UserMenu() {
+  const { user, logout } = useSession()
+  const navigate = useNavigate()
+  const { pathname } = useLocation()
+  const [open, setOpen] = useState(false)
+  const box = useRef<HTMLDivElement>(null)
+  const toggle = useRef<HTMLButtonElement>(null)
+
+  useEffect(() => setOpen(false), [pathname])
+  // se cierra con un clic afuera o con Escape (que devuelve el foco al botón)
+  useEffect(() => {
+    if (!open) return
+    const onClick = (e: MouseEvent) => !box.current?.contains(e.target as Node) && setOpen(false)
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return
+      setOpen(false)
+      toggle.current?.focus()
+    }
+    document.addEventListener("mousedown", onClick)
+    document.addEventListener("keydown", onKey)
+    return () => {
+      document.removeEventListener("mousedown", onClick)
+      document.removeEventListener("keydown", onKey)
+    }
+  }, [open])
+
+  if (!user) return null
+  return (
+    <div className="user-menu" ref={box}>
+      <button ref={toggle} className="who" aria-expanded={open} aria-controls="menu-cuenta" onClick={() => setOpen(!open)}>
+        {user.name}
+        {user.role === "admin" && " (administrador)"}
+        <svg viewBox="0 0 10 10" aria-hidden="true">
+          <path d="M1.5 3.5l3.5 3.5 3.5-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" />
+        </svg>
+      </button>
+      {open && (
+        <ul id="menu-cuenta">
+          <li>
+            <Link to="/cuenta">{user.role === "admin" ? "Mi cuenta" : "Mi cuenta y pedidos"}</Link>
+          </li>
+          {user.role === "admin" && (
+            <>
+              <li>
+                <Link to="/pedidos">Pedidos</Link>
+              </li>
+              <li>
+                <Link to="/admin">Administración</Link>
+              </li>
+            </>
+          )}
+          <li>
+            <button
+              onClick={() => {
+                logout()
+                navigate("/")
+              }}
+            >
+              Salir
+            </button>
+          </li>
+        </ul>
+      )}
+    </div>
+  )
+}
+
 export default function App() {
-  const { user, logout, cart } = useSession()
+  const { user, cart } = useSession()
   const items = cart.reduce((sum, i) => sum + i.quantity, 0)
 
   return (
@@ -50,15 +120,7 @@ export default function App() {
           </Link>
           <div className="account">
             {user ? (
-              <>
-                <span className="who">
-                  {user.name}
-                  {user.role === "admin" && " (administrador)"}
-                </span>
-                <button className="link" onClick={logout}>
-                  Salir
-                </button>
-              </>
+              <UserMenu />
             ) : (
               <>
                 <NavLink to="/login">Ingresar</NavLink>
@@ -72,14 +134,6 @@ export default function App() {
             )}
           </div>
         </div>
-        <nav className="bar2" aria-label="Secciones">
-          <NavLink to="/" end>
-            Catálogo
-          </NavLink>
-          {user?.role !== "admin" && <NavLink to="/carrito">Carrito</NavLink>}
-          {user &&<NavLink to="/pedidos">{user.role === "admin" ? "Pedidos" : "Mis pedidos"}</NavLink>}
-          {user?.role === "admin" && <NavLink to="/admin">Administración</NavLink>}
-        </nav>
       </header>
       <main>
         <Routes>
@@ -88,7 +142,12 @@ export default function App() {
           <Route path="/carrito" element={<Cart />} />
           <Route path="/login" element={<Login />} />
           <Route path="/registro" element={<Register />} />
-          <Route path="/pedidos" element={<Private><MyOrders /></Private>} />
+          <Route path="/cuenta" element={<Private><Account /></Private>} />
+          {/* los pedidos del cliente viven en su cuenta; /pedidos queda para el listado completo del admin */}
+          <Route
+            path="/pedidos"
+            element={user?.role === "cliente" ? <Navigate to="/cuenta" replace /> : <Private admin><MyOrders /></Private>}
+          />
           <Route path="/pedidos/:id" element={<Private><OrderDetail /></Private>} />
           <Route path="/admin" element={<Private admin><Admin /></Private>} />
           <Route

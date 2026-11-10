@@ -59,9 +59,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       tokenStore.set(data.token)
       setUser(data.user)
     },
+    // el carrito queda en el navegador: se vacía para que no lo herede quien use la compu después
     logout() {
       tokenStore.clear()
       setUser(null)
+      setCart([])
     },
     cart,
     setQuantity,
