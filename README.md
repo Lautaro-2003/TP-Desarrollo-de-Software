@@ -85,6 +85,8 @@ Usuarios de prueba del seed:
 
 Al registrarse, la cuenta queda sin confirmar y le llega un mail con un link a `/confirmar/<token>`. Al abrirlo, la tienda llama a `GET /api/auth/confirm/:token`, que marca el email como confirmado y borra el token (el link sirve una sola vez). Hasta entonces el login responde 403 y reenvía el mail, por si no llegó. Los usuarios del seed y los creados antes de esta función no tienen el campo y entran igual.
 
+Lo mismo pasa al cambiar el email desde "Mi cuenta" (`PATCH /api/users/:id`): el nuevo queda sin confirmar y le llega otro link. La sesión abierta sigue andando, pero para volver a ingresar hay que confirmarlo; por eso el formulario pide el email nuevo dos veces.
+
 ## Roles y permisos
 
 - **Sin sesión**: ver el catálogo (categorías, productos, descuentos) y las reseñas; registrarse.
