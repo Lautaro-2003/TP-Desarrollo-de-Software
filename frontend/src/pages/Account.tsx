@@ -4,29 +4,41 @@ import { api, ApiError, User } from "../api"
 import { useSession } from "../session"
 import { MyOrders } from "./Orders"
 
-// página del usuario: sus datos (editables) y, si es cliente, sus pedidos para seguirlos, pagarlos o cancelarlos
+// página del usuario: sus datos (editables; un email nuevo hay que confirmarlo) y, si es cliente, sus pedidos para seguirlos, pagarlos o cancelarlos
 export default function Account() {
   const { user: sessionUser, setUser } = useSession()
   const user = sessionUser!
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState(user.name)
   const [address, setAddress] = useState(user.address)
+  const [email, setEmail] = useState(user.email)
+  const [emailAgain, setEmailAgain] = useState("")
+  const [notice, setNotice] = useState("")
   const [error, setError] = useState("")
   const [saving, setSaving] = useState(false)
 
   const startEditing = () => {
     setName(user.name)
     setAddress(user.address)
+    setEmail(user.email)
+    setEmailAgain("")
     setError("")
+    setNotice("")
     setEditing(true)
   }
 
   // el backend valida y recorta los campos; la sesión se actualiza con lo que devuelve
   async function submit(e: FormEvent) {
     e.preventDefault()
+    // el email solo se manda si cambió; se pide dos veces porque un error deja la cuenta sin poder ingresar
+    const emailChanged = email.trim().toLowerCase() !== user.email
+    if (emailChanged && email.trim().toLowerCase() !== emailAgain.trim().toLowerCase()) {
+      return setError("Los dos emails no coinciden")
+    }
     setSaving(true)
     try {
-      setUser(await api<User>("PATCH", `/users/${user._id}`, { name, address }))
+      setUser(await api<User>("PATCH", `/users/${user._id}`, emailChanged ? { name, address, email } : { name, address }))
+      setNotice(emailChanged ? "Te mandamos un link al nuevo email: confirmalo antes de volver a ingresar." : "")
       setEditing(false)
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "No se pudieron guardar los cambios")
@@ -50,6 +62,16 @@ export default function Account() {
                 <input value={name} onChange={(e) => setName(e.target.value)} required maxLength={120} autoComplete="name" />
               </label>
               <label>
+                Email
+                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" />
+              </label>
+              {email.trim().toLowerCase() !== user.email && (
+                <label>
+                  Repetí el email nuevo
+                  <input type="email" value={emailAgain} onChange={(e) => setEmailAgain(e.target.value)} required autoComplete="off" />
+                </label>
+              )}
+              <label>
                 Dirección de envío
                 <input
                   value={address}
@@ -71,6 +93,7 @@ export default function Account() {
             </form>
           ) : (
             <>
+              {notice && <p className="notice">{notice}</p>}
               <dl className="profile">
                 <dt>Nombre</dt>
                 <dd>{user.name}</dd>
