@@ -5,6 +5,8 @@ type CartItem = { productId: string; quantity: number }
 
 type Session = {
   user: User | null
+  // reemplaza el usuario de la sesión, por ejemplo después de editar sus datos
+  setUser: (user: User) => void
   loading: boolean
   login: (email: string, password: string) => Promise<void>
   logout: () => void
@@ -53,6 +55,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const value: Session = {
     user,
+    setUser,
     loading,
     async login(email, password) {
       const data = await api<{ token: string; user: User }>("POST", "/auth/login", { email, password })
