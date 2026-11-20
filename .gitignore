@@ -48,3 +48,4 @@ docs/adr/
 
 # build del frontend
 frontend/dist/
+.impeccable/
