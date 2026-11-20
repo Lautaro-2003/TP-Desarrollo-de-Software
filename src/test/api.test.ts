@@ -663,6 +663,24 @@ describe("autenticación y permisos", () => {
     assert.ok(sofiaToken)
   })
 
+  test("cambio de email: el nuevo queda sin confirmar hasta abrir el link", async () => {
+    const changed = await asSofia("PATCH", `/users/${sofia}`, { email: " Sofia.Nueva@Mail.com " })
+    assert.equal(changed.status, 200)
+    assert.equal(changed.body.data.email, "sofia.nueva@mail.com")
+    assert.equal(changed.body.data.emailConfirmed, false)
+    assert.equal(changed.body.data.emailToken, undefined)
+    // la sesión abierta sigue sirviendo, pero no se puede volver a ingresar sin confirmar
+    assert.equal((await asSofia("GET", `/users/${sofia}`)).status, 200)
+    assert.equal((await api("POST", "/auth/login", { email: "sofia.nueva@mail.com", password: "nueva12345" }, { token: null })).status, 403)
+
+    assert.equal((await confirmEmail("sofia.nueva@mail.com")).status, 200)
+    assert.ok(await login("sofia.nueva@mail.com", "nueva12345"))
+
+    // mandar el mismo email no lo vuelve a desconfirmar
+    const same = await asSofia("PATCH", `/users/${sofia}`, { email: "sofia.nueva@mail.com" })
+    assert.notEqual(same.body.data.emailConfirmed, false)
+  })
+
   test("pedidos: el cliente compra para sí mismo y solo ve y toca los suyos", async () => {
     assert.equal((await api("GET", "/orders", undefined, { token: null })).status, 401)
 

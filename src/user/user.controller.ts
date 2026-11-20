@@ -183,7 +183,23 @@ async function update(req: Request, res: Response) {
     return res.status(409).send({ message: "Ya existe un usuario con ese email" })
   }
 
+  // un email nuevo vuelve a quedar sin confirmar hasta que se abra el link que le llega
+  const emailChanged = !!fields.email && fields.email !== existing.email
+  if (emailChanged) {
+    fields.emailConfirmed = false
+    fields.emailToken = randomBytes(32).toString("hex")
+  }
+
   const user = await repository.update(id, fields as User)
+  if (emailChanged) {
+    try {
+      await sendConfirmationEmail(fields.email!, user!.name, fields.emailToken!)
+    } catch (err) {
+      // el cambio ya quedó guardado: al intentar ingresar se le reenvía el mail
+      console.error("No se pudo mandar el mail de confirmación", err)
+    }
+    return res.status(200).send({ message: "Usuario actualizado: revisá tu nuevo email para confirmarlo", data: user })
+  }
   return res.status(200).send({ message: "Usuario actualizado", data: user })
 }
 
