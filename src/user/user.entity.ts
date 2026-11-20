@@ -1,6 +1,8 @@
 import { ObjectId } from "mongodb"
 
 export const USER_ROLES = ["cliente", "admin"] as const
+
+// type UserRole = "cliente" | "admin"
 export type UserRole = (typeof USER_ROLES)[number]
 
 export class User {
